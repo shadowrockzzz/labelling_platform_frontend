@@ -28,6 +28,7 @@ export const Login = () => {
     setIsLoading(true);
     try {
       const success = await login(data.email, data.password);
+      console.log('Login success:', success);
       if (!success) {
         setIsLoading(false);
       }

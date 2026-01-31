@@ -55,7 +55,7 @@ function App() {
               <Layout />
             }
           >
-            <Route index element={<Navigate to="/dashboard" replace />} />
+            <Route index element={<Navigate to="/login" replace />} />
             <Route path="dashboard" element={<Dashboard />} />
             
             {/* Admin-only routes */}
