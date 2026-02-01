@@ -1,7 +1,7 @@
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
 import { AuthProvider } from './contexts/AuthContext.jsx';
-// import { ProtectedRoute, RoleBasedRoute } from './components/auth';
+import { ProtectedRoute, RoleBasedRoute } from './components/auth';
 import { ROLES } from './utils/constants';
 
 // Pages
@@ -49,17 +49,17 @@ function App() {
           <Route
             path="/"
             element={
-              // <ProtectedRoute>
-              //   <Layout />
-              // </ProtectedRoute>
-              <Layout />
+              <ProtectedRoute>
+                <Layout />
+              </ProtectedRoute>
+              // <Layout />
             }
           >
             <Route index element={<Navigate to="/login" replace />} />
             <Route path="dashboard" element={<Dashboard />} />
             
             {/* Admin-only routes */}
-            {/* <Route
+            <Route
               path="admin/users"
               element={
                 <RoleBasedRoute allowedRoles={[ROLES.ADMIN]}>
@@ -69,7 +69,7 @@ function App() {
                   </div>
                 </RoleBasedRoute>
               }
-            /> */}
+            />
             
             {/* Manager/Admin routes */}
             <Route

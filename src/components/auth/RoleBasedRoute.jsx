@@ -2,7 +2,7 @@ import { Navigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext.jsx';
 import { ROLES } from '../../utils/constants';
 
-export const RoleBasedRoute = ({ children, allowedRoles = [] }) => {
+const RoleBasedRoute = ({ children, allowedRoles = [] }) => {
   const { user, isAuthenticated } = useAuth();
 
   if (!isAuthenticated) {
@@ -15,3 +15,5 @@ export const RoleBasedRoute = ({ children, allowedRoles = [] }) => {
 
   return children;
 };
+
+export default RoleBasedRoute;
