@@ -140,12 +140,6 @@ export const ProjectList = () => {
             <Archive className="w-12 h-12 text-gray-400" />
           </div>
           <h3 className="text-xl font-semibold text-gray-900 mb-2">No projects yet</h3>
-          <p className="text-gray-600 mb-6">Create your first project to get started.</p>
-          {canEditProject() && (
-            <button className="bg-primary-600 text-white px-6 py-3 rounded-lg hover:bg-primary-700">
-              Create Project
-            </button>
-          )}
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">

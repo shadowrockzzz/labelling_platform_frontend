@@ -10,7 +10,7 @@ import { LoadingSpinner } from '../components/common/LoadingSpinner.jsx';
 import toast from 'react-hot-toast';
 
 export const Profile = () => {
-  const { user, logout } = useAuth();
+  const { user, logout, refreshUser } = useAuth();
   const [profile, setProfile] = useState(null);
   const [projects, setProjects] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -42,7 +42,7 @@ export const Profile = () => {
   const fetchProfile = async () => {
     try {
       setLoading(true);
-      const currentUser = await authService.getCurrentUser();
+      const currentUser = await userService.getCurrentUser();
       setProfile(currentUser);
       
       const nameParts = currentUser.full_name ? currentUser.full_name.split(' ') : ['', ''];
@@ -76,12 +76,16 @@ export const Profile = () => {
   const handleProfileSave = async (data) => {
     try {
       const fullName = `${data.first_name} ${data.last_name}`.trim();
-      await userService.updateUser(user.id, {
+      await userService.updateCurrentUser({
         name: fullName,
         bio: data.bio
       });
       toast.success('Profile updated successfully');
       setHasChanges(false);
+      
+      // Refresh user data in AuthContext so all components get the updated info
+      await refreshUser();
+      
       fetchProfile();
     } catch (error) {
       toast.error('Failed to update profile');

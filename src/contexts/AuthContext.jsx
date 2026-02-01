@@ -70,6 +70,22 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  const refreshUser = async () => {
+    try {
+      const userData = await authService.getCurrentUser();
+      setUser(userData);
+      localStorage.setItem('user', JSON.stringify(userData));
+      return userData;
+    } catch (error) {
+      console.error('Failed to refresh user:', error);
+      // If refresh fails, logout user
+      setUser(null);
+      setIsAuthenticated(false);
+      navigate('/login');
+      throw error;
+    }
+  };
+
   const getRedirectPath = (role) => {
     switch (role) {
       case 'admin':
@@ -128,6 +144,7 @@ export const AuthProvider = ({ children }) => {
     login,
     logout,
     checkAuth,
+    refreshUser,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

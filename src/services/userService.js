@@ -38,4 +38,14 @@ export const userService = {
     const response = await api.put(`/users/${id}/role`, { role });
     return response.data.data;
   },
+
+  async getCurrentUser() {
+    const response = await api.get('/users/me');
+    return response.data.data;
+  },
+
+  async updateCurrentUser(updates) {
+    const response = await api.put('/users/me', updates);
+    return response.data.data;
+  },
 };
