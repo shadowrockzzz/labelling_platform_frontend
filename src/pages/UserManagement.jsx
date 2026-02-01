@@ -10,7 +10,8 @@ import {
   X,
   Users,
   Eye,
-  EyeOff
+  EyeOff,
+  Power
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext.jsx';
 import { RoleBadge, ROLE_OPTIONS } from '../utils/roleHelpers.jsx';
@@ -39,6 +40,8 @@ export const UserManagement = () => {
   const [selectedProjects, setSelectedProjects] = useState({});
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [isToggling, setIsToggling] = useState({});
 
   const fetchUsers = async () => {
     try {
@@ -96,7 +99,7 @@ export const UserManagement = () => {
         return;
       }
       await userService.createUser({
-        name: data.name,
+        full_name: data.name,
         email: data.email,
         password: data.password,
         role: data.role
@@ -143,13 +146,41 @@ export const UserManagement = () => {
   // Delete User
   const handleDeleteUser = async () => {
     try {
+      setIsDeleting(true);
+      console.log('Deleting user:', selectedUser.id, selectedUser.full_name);
       await userService.deleteUser(selectedUser.id);
-      toast.success('User deleted successfully');
+      toast.success('User deleted successfully from database');
       setShowDeleteModal(false);
       setSelectedUser(null);
       fetchUsers();
     } catch (error) {
-      toast.error('Failed to delete user');
+      console.error('Delete error:', error);
+      const errorMessage = error.response?.data?.detail || error.message || 'Failed to delete user';
+      toast.error(errorMessage);
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
+  // Toggle User Active Status
+  const handleToggleStatus = async (user) => {
+    try {
+      setIsToggling(prev => ({ ...prev, [user.id]: true }));
+      
+      const newStatus = !user.is_active;
+      await userService.updateUser(user.id, {
+        name: user.full_name,
+        role: user.role,
+        is_active: newStatus
+      });
+      
+      toast.success(`User ${newStatus ? 'activated' : 'deactivated'} successfully`);
+      fetchUsers();
+    } catch (error) {
+      console.error('Toggle status error:', error);
+      toast.error('Failed to update user status');
+    } finally {
+      setIsToggling(prev => ({ ...prev, [user.id]: false }));
     }
   };
 
@@ -281,10 +312,26 @@ export const UserManagement = () => {
                     }`}>
                       {getAvatarInitials(user.full_name, user.email)}
                     </div>
-                    <div>
+                    <div className="flex-1">
                       <div className="font-medium text-gray-900">{user.full_name}</div>
                       <div className="text-sm text-gray-600">{user.email}</div>
                     </div>
+                    <button
+                      onClick={() => handleToggleStatus(user)}
+                      disabled={isToggling[user.id]}
+                      title={user.is_active ? 'Deactivate user' : 'Activate user'}
+                      className={`p-2 rounded-full transition-colors ${
+                        user.is_active 
+                          ? 'bg-green-100 text-green-600 hover:bg-green-200' 
+                          : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                      } disabled:opacity-50 disabled:cursor-not-allowed`}
+                    >
+                      {isToggling[user.id] ? (
+                        <LoadingSpinner size="sm" />
+                      ) : (
+                        <Power className="w-4 h-4" />
+                      )}
+                    </button>
                   </div>
                 </td>
                 <td className="px-6 py-4">
@@ -329,7 +376,7 @@ export const UserManagement = () => {
                         setSelectedUser(user);
                         setShowDeleteModal(true);
                       }}
-                      className="p-2 text-gray-600 hover:text-error-600 hover:bg-error-50 rounded"
+                      className="p-2 text-error-600 hover:text-error-700 hover:bg-error-50 rounded"
                       title="Delete"
                     >
                       <Trash2 className="w-4 h-4" />
@@ -661,9 +708,17 @@ export const UserManagement = () => {
               </button>
               <button
                 onClick={handleDeleteUser}
-                className="flex-1 px-4 py-2 bg-error-600 text-white rounded-lg hover:bg-error-700"
+                disabled={isDeleting}
+                className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 font-semibold"
               >
-                Delete User
+                {isDeleting ? (
+                  <>
+                    <LoadingSpinner size="sm" />
+                    <span>Deleting...</span>
+                  </>
+                ) : (
+                  'Delete User'
+                )}
               </button>
             </div>
           </div>
