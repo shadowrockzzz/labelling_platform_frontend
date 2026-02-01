@@ -7,6 +7,10 @@ import { ROLES } from './utils/constants';
 // Pages
 import { Login } from './pages/Login.jsx';
 import { Dashboard } from './pages/Dashboard.jsx';
+import { UserManagement } from './pages/UserManagement.jsx';
+import { ProjectList } from './pages/ProjectList.jsx';
+import { ProjectDetail } from './pages/ProjectDetail.jsx';
+import { Profile } from './pages/Profile.jsx';
 
 // Components
 import { Layout } from './components/layout/Layout.jsx';
@@ -63,35 +67,17 @@ function App() {
               path="admin/users"
               element={
                 <RoleBasedRoute allowedRoles={[ROLES.ADMIN]}>
-                  <div className="p-8">
-                    <h1 className="text-2xl font-bold mb-4">User Management</h1>
-                    <p className="text-gray-600">User management page coming soon...</p>
-                  </div>
+                  <UserManagement />
                 </RoleBasedRoute>
               }
             />
             
-            {/* Manager/Admin routes */}
-            <Route
-              path="projects"
-              element={
-                <div className="p-8">
-                  <h1 className="text-2xl font-bold mb-4">Projects</h1>
-                  <p className="text-gray-600">Projects page coming soon...</p>
-                </div>
-              }
-            />
+            {/* Projects routes */}
+            <Route path="projects" element={<ProjectList />} />
+            <Route path="projects/:id" element={<ProjectDetail />} />
             
             {/* Profile */}
-            <Route
-              path="profile"
-              element={
-                <div className="p-8">
-                  <h1 className="text-2xl font-bold mb-4">Profile</h1>
-                  <p className="text-gray-600">Profile page coming soon...</p>
-                </div>
-              }
-            />
+            <Route path="profile" element={<Profile />} />
           </Route>
           
           {/* Catch all */}
