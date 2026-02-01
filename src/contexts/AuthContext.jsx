@@ -19,20 +19,14 @@ export const AuthProvider = ({ children }) => {
 
   const checkAuth = async () => {
     try {
+      // Check if tokens exist in localStorage
+      const accessToken = localStorage.getItem('access_token');
       const userData = authService.getUser();
-      if (userData) {
+      
+      if (accessToken && userData) {
         setUser(userData);
         setIsAuthenticated(true);
-        
-        // Verify token is still valid
-        try {
-          const currentUser = await authService.getCurrentUser();
-          setUser(currentUser);
-          localStorage.setItem('user', JSON.stringify(currentUser));
-        } catch (error) {
-          // Token might be expired, clear auth
-          logout();
-        }
+        // Token refresh mechanism in api.jsx will handle expired tokens automatically
       }
     } catch (error) {
       console.error('Auth check failed:', error);
