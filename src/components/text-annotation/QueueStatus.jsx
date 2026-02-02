@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useContext } from 'react';
-import { RefreshCw, Eye, EyeOff } from 'lucide-react';
+import { RefreshCw, Eye, EyeOff, Layers } from 'lucide-react';
 import { textAnnotationService } from '../../services/textAnnotationService';
-import { QUEUE_TASK_STATUS } from '../../features/text-annotation/constants';
+import { QUEUE_TASK_STATUS, getSubTypeConfig } from '../../features/text-annotation/constants';
 import { AuthContext } from '../../contexts/AuthContext';
 
 const QueueStatus = ({ projectId }) => {
@@ -55,6 +55,47 @@ const QueueStatus = ({ projectId }) => {
     processing: 'bg-blue-100 text-blue-800',
     done: 'bg-green-100 text-green-800',
     failed: 'bg-red-100 text-red-800'
+  };
+
+  // Helper to get sub-type info from payload
+  const getSubTypeInfo = (payload) => {
+    if (!payload) return null;
+    const subType = payload.annotation_sub_type;
+    if (!subType) return null;
+    
+    const config = getSubTypeConfig(subType);
+    return {
+      subType,
+      label: config?.shortLabel || subType.toUpperCase(),
+      fullLabel: config?.label,
+      color: config?.color || '#6366f1'
+    };
+  };
+
+  // Helper to format task description
+  const getTaskDescription = (task) => {
+    const subTypeInfo = getSubTypeInfo(task.payload);
+    
+    switch (task.task_type) {
+      case 'resource_uploaded':
+        return 'A new text resource was uploaded to the project';
+      
+      case 'resource_url_added':
+        return 'A URL resource was added to the project';
+      
+      case 'annotation_submitted':
+        return subTypeInfo 
+          ? `An ${subTypeInfo.fullLabel} annotation was submitted for review`
+          : 'An annotation was submitted for review';
+      
+      case 'annotation_reviewed':
+        return subTypeInfo
+          ? `An ${subTypeInfo.fullLabel} annotation was reviewed`
+          : 'An annotation was reviewed';
+      
+      default:
+        return task.task_type?.replace('_', ' ') || 'Unknown task';
+    }
   };
 
   if (tasks.length === 0) {
@@ -111,35 +152,116 @@ const QueueStatus = ({ projectId }) => {
       </div>
       
       <div className="space-y-3">
-        {tasks.map((task) => (
-          <div
-            key={task.id}
-            className="border border-gray-200 rounded-md p-3 hover:bg-gray-50 transition-colors"
-          >
-            <div className="flex items-center justify-between mb-2">
-              <span className={`inline-flex items-center px-2 py-1 rounded-md text-xs font-medium ${statusColors[task.status] || statusColors.pending}`}>
-                {task.status}
-              </span>
-              <span className="text-xs text-gray-500">
-                {new Date(task.created_at).toLocaleTimeString()}
-              </span>
+        {tasks.map((task) => {
+          const subTypeInfo = getSubTypeInfo(task.payload);
+          
+          return (
+            <div
+              key={task.id}
+              className="border border-gray-200 rounded-lg p-4 hover:bg-gray-50 transition-colors"
+            >
+              {/* Header: Status, Type, Timestamp */}
+              <div className="flex items-start justify-between mb-3">
+                <div className="flex flex-wrap items-center gap-2">
+                  {/* Status Badge */}
+                  <span 
+                    className={`inline-flex items-center px-2.5 py-1 rounded-md text-xs font-medium ${statusColors[task.status] || statusColors.pending}`}
+                  >
+                    {task.status.toUpperCase()}
+                  </span>
+                  
+                  {/* Annotation Type Badge */}
+                  <span className="inline-flex items-center px-2 py-1 rounded-md text-xs font-medium bg-blue-100 text-blue-800">
+                    {task.annotation_type?.toUpperCase() || 'TEXT'}
+                  </span>
+                  
+                  {/* Sub-Type Badge (if available in payload) */}
+                  {subTypeInfo && (
+                    <span 
+                      className="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-medium"
+                      style={{ backgroundColor: subTypeInfo.color, color: 'white' }}
+                    >
+                      <Layers size={12} className="mr-1" />
+                      {subTypeInfo.label}
+                    </span>
+                  )}
+                </div>
+                
+                <span className="text-xs text-gray-500 whitespace-nowrap">
+                  {new Date(task.created_at).toLocaleString()}
+                </span>
+              </div>
+
+              {/* Task Description */}
+              <p className="text-sm font-medium text-gray-900 mb-2">
+                {getTaskDescription(task)}
+              </p>
+
+              {/* Task Type */}
+              <div className="mb-2">
+                <span className="text-xs text-gray-500">Task Type:</span>
+                <span className="ml-2 text-xs font-medium text-gray-700">
+                  {task.task_type?.replace(/_/g, ' ').toUpperCase()}
+                </span>
+              </div>
+
+              {/* IDs */}
+              <div className="flex flex-wrap gap-4 mb-2 text-xs text-gray-600">
+                {task.resource_id && (
+                  <span>
+                    <span className="text-gray-500">Resource:</span> {task.resource_id}
+                  </span>
+                )}
+                {task.annotation_id && (
+                  <span>
+                    <span className="text-gray-500">Annotation:</span> {task.annotation_id}
+                  </span>
+                )}
+              </div>
+
+              {/* Error Message */}
+              {task.error_message && (
+                <div className="mt-2 p-2 bg-red-50 border border-red-200 rounded-md">
+                  <p className="text-xs text-red-700">
+                    <strong>Error:</strong> {task.error_message}
+                  </p>
+                </div>
+              )}
+
+              {/* Processed At */}
+              {task.processed_at && (
+                <p className="mt-2 text-xs text-gray-500">
+                  Processed: {new Date(task.processed_at).toLocaleString()}
+                </p>
+              )}
+
+              {/* Payload Details */}
+              {task.payload && Object.keys(task.payload).length > 0 && (
+                <details className="mt-3">
+                  <summary className="text-xs text-blue-600 cursor-pointer hover:text-blue-700">
+                    View payload ({Object.keys(task.payload).length} fields)
+                  </summary>
+                  <pre className="mt-2 p-3 bg-gray-50 rounded text-xs text-left overflow-x-auto">
+                    {JSON.stringify(task.payload, null, 2)}
+                  </pre>
+                </details>
+              )}
             </div>
-            <p className="text-sm font-medium text-gray-900">
-              {task.task_type?.replace('_', ' ').toUpperCase()}
-            </p>
-            {task.error_message && (
-              <p className="mt-1 text-xs text-red-600">{task.error_message}</p>
-            )}
-            {task.metadata && Object.keys(task.metadata).length > 0 && (
-              <details className="mt-2">
-                <summary className="text-xs text-blue-600 cursor-pointer">View details</summary>
-                <pre className="mt-1 text-xs bg-gray-100 p-2 rounded overflow-auto">
-                  {JSON.stringify(task.metadata, null, 2)}
-                </pre>
-              </details>
-            )}
-          </div>
-        ))}
+          );
+        })}
+      </div>
+
+      {/* Summary */}
+      <div className="mt-4 pt-4 border-t border-gray-200">
+        <div className="flex items-center justify-between text-sm text-gray-600">
+          <span>Total tasks: {tasks.length}</span>
+          <span>
+            Pending: {tasks.filter(t => t.status === 'pending').length} • 
+            Processing: {tasks.filter(t => t.status === 'processing').length} • 
+            Done: {tasks.filter(t => t.status === 'done').length} • 
+            Failed: {tasks.filter(t => t.status === 'failed').length}
+          </span>
+        </div>
       </div>
     </div>
   );

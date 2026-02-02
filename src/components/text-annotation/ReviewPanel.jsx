@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ANNOTATION_STATUS } from '../../features/text-annotation/constants';
+import { ANNOTATION_STATUSES } from '../../features/text-annotation/constants';
 
 const ReviewPanel = ({ annotations, onReview, loading }) => {
   const [selectedAnnotation, setSelectedAnnotation] = useState(null);
@@ -14,7 +14,7 @@ const ReviewPanel = ({ annotations, onReview, loading }) => {
   };
 
   const pendingReview = annotations.filter(
-    a => a.status === ANNOTATION_STATUS.UNDER_REVIEW || a.status === ANNOTATION_STATUS.SUBMITTED
+    a => a.status === ANNOTATION_STATUSES.UNDER_REVIEW || a.status === ANNOTATION_STATUSES.SUBMITTED
   );
 
   if (pendingReview.length === 0) {

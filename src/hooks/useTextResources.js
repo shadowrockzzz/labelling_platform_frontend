@@ -70,6 +70,21 @@ export const useTextResources = (projectId) => {
     }
   }, [projectId, fetchResources]);
 
+  const getResource = useCallback(async (resourceId) => {
+    if (!projectId) throw new Error('Project ID is required');
+    
+    setLoading(true);
+    try {
+      const resource = await textResourceService.getResource(projectId, resourceId);
+      return resource;
+    } catch (err) {
+      setError(err.response?.data?.error || 'Failed to fetch resource');
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  }, [projectId]);
+
   useEffect(() => {
     fetchResources();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -83,6 +98,7 @@ export const useTextResources = (projectId) => {
     fetchResources,
     uploadResource,
     addUrlResource,
-    deleteResource
+    deleteResource,
+    getResource
   };
 };

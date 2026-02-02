@@ -8,10 +8,12 @@ import TextAnnotationEditor from './TextAnnotationEditor';
 import AnnotationList from './AnnotationList';
 import ReviewPanel from './ReviewPanel';
 import QueueStatus from './QueueStatus';
-import { ANNOTATION_STATUS } from '../../features/text-annotation/constants';
+import { ANNOTATION_STATUSES } from '../../features/text-annotation/constants';
 
 const TextAnnotationWorkspace = ({ projectId, userRole, project }) => {
   const [selectedResource, setSelectedResource] = useState(null);
+  const [resourceWithContent, setResourceWithContent] = useState(null);
+  const [loadingResource, setLoadingResource] = useState(false);
   const [editingAnnotation, setEditingAnnotation] = useState(null);
   const [showEditor, setShowEditor] = useState(false);
   const [activeTab, setActiveTab] = useState('annotate'); // 'annotate' or 'review'
@@ -22,6 +24,7 @@ const TextAnnotationWorkspace = ({ projectId, userRole, project }) => {
     uploadResource,
     addUrlResource,
     deleteResource,
+    getResource,
   } = useTextResources(projectId);
 
   const {
@@ -47,8 +50,19 @@ const TextAnnotationWorkspace = ({ projectId, userRole, project }) => {
     setSelectedResource(resource);
     setEditingAnnotation(null);
     setShowEditor(false);
-    // Fetch annotations for this resource
-    fetchAnnotations(1, { resource_id: resource.id });
+    setLoadingResource(true);
+    
+    try {
+      // Fetch full resource details including content
+      const fullResource = await getResource(resource.id);
+      setResourceWithContent(fullResource);
+      // Fetch annotations for this resource
+      fetchAnnotations(1, { resource_id: resource.id });
+    } catch (error) {
+      alert('Failed to load resource content: ' + (error.response?.data?.error || error.message));
+    } finally {
+      setLoadingResource(false);
+    }
   };
 
   const handleCreateAnnotation = () => {
@@ -179,11 +193,20 @@ const TextAnnotationWorkspace = ({ projectId, userRole, project }) => {
 
           {/* Right Column: Annotations */}
           <div className="space-y-6">
-            {showEditor && selectedResource ? (
+            {loadingResource && (
+              <div className="bg-white rounded-lg shadow-md p-6">
+                <div className="flex items-center justify-center py-8">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
+                  <span className="ml-3 text-gray-600">Loading resource content...</span>
+                </div>
+              </div>
+            )}
+            {showEditor && resourceWithContent ? (
               <TextAnnotationEditor
-                resource={selectedResource}
+                resource={resourceWithContent}
                 annotation={editingAnnotation}
                 annotationSubType={project?.config?.textSubType || ''}
+                annotations={annotations}
                 onSave={handleSaveAnnotation}
                 onCancel={() => {
                   setShowEditor(false);
@@ -201,15 +224,16 @@ const TextAnnotationWorkspace = ({ projectId, userRole, project }) => {
                     Create New Annotation
                   </button>
                 )}
-                <AnnotationList
-                  annotations={annotations}
-                  loading={annotationsLoading}
-                  onSelect={() => {}}
-                  onEdit={handleEditAnnotation}
-                  onSubmit={handleSubmitAnnotation}
-                  canSubmit={canAnnotate}
-                  canReview={canReview}
-                />
+            <AnnotationList
+              annotations={annotations}
+              loading={annotationsLoading || loadingResource}
+              resourceContent={resourceWithContent?.full_content || ''}
+              onSelect={() => {}}
+              onEdit={handleEditAnnotation}
+              onSubmit={handleSubmitAnnotation}
+              canSubmit={canAnnotate}
+              canReview={canReview}
+            />
               </>
             )}
             

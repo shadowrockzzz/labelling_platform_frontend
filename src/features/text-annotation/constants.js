@@ -1,9 +1,150 @@
-// Annotation Type is now module-level (always 'text' for this module)
-export const ANNOTATION_TYPES = {
-  TEXT: 'text'
+export const ANNOTATION_SUB_TYPES = {
+  NER: {
+    value: 'ner',
+    label: 'Named Entity Recognition',
+    shortLabel: 'NER',
+    description: 'Identify and label named entities',
+    color: '#6366f1',
+    fields: ['label', 'span_start', 'span_end', 'annotation_data'],
+    labels: ['PERSON', 'ORG', 'LOCATION', 'DATE', 'PRODUCT', 'EVENT', 'MONEY'],
+    labelColors: {
+      PERSON: 'bg-blue-500',
+      ORG: 'bg-purple-500',
+      LOCATION: 'bg-green-500',
+      DATE: 'bg-yellow-500',
+      PRODUCT: 'bg-pink-500',
+      EVENT: 'bg-indigo-500',
+      MONEY: 'bg-orange-500',
+    }
+  },
+  POS: {
+    value: 'pos',
+    label: 'Part-of-Speech Tagging',
+    shortLabel: 'POS',
+    description: 'Label words by grammatical category',
+    color: '#8b5cf6',
+    fields: ['label', 'span_start', 'span_end', 'annotation_data'],
+    labels: ['NOUN', 'VERB', 'ADJ', 'ADV', 'PRON', 'DET', 'PREP', 'CONJ'],
+    labelColors: {
+      NOUN: 'bg-blue-400',
+      VERB: 'bg-green-400',
+      ADJ: 'bg-purple-400',
+      ADV: 'bg-yellow-400',
+      PRON: 'bg-pink-400',
+      DET: 'bg-indigo-400',
+      PREP: 'bg-orange-400',
+      CONJ: 'bg-teal-400',
+    }
+  },
+  SENTIMENT: {
+    value: 'sentiment',
+    label: 'Sentiment / Emotion',
+    shortLabel: 'Sentiment',
+    description: 'Mark text with emotional tone',
+    color: '#ec4899',
+    fields: ['label', 'span_start', 'span_end', 'annotation_data'],
+    labels: ['POSITIVE', 'NEGATIVE', 'NEUTRAL', 'JOY', 'ANGER', 'SADNESS', 'FEAR'],
+    labelColors: {
+      POSITIVE: 'bg-green-500',
+      NEGATIVE: 'bg-red-500',
+      NEUTRAL: 'bg-gray-500',
+      JOY: 'bg-yellow-400',
+      ANGER: 'bg-red-600',
+      SADNESS: 'bg-blue-600',
+      FEAR: 'bg-purple-600',
+    }
+  },
+  RELATION: {
+    value: 'relation',
+    label: 'Relation Extraction',
+    shortLabel: 'Relation',
+    description: 'Identify relationships between entities',
+    color: '#f59e0b',
+    fields: ['label', 'annotation_data'],  // No span fields
+    labels: ['WORKS_FOR', 'LOCATED_IN', 'PART_OF', 'OWNS', 'BORN_IN', 'CUSTOM'],
+    labelColors: {
+      WORKS_FOR: 'bg-blue-500',
+      LOCATED_IN: 'bg-green-500',
+      PART_OF: 'bg-purple-500',
+      OWNS: 'bg-orange-500',
+      BORN_IN: 'bg-pink-500',
+      CUSTOM: 'bg-gray-500',
+    }
+  },
+  SPAN: {
+    value: 'span',
+    label: 'Span / Sequence Labeling',
+    shortLabel: 'Span',
+    description: 'Highlight continuous text segments',
+    color: '#06b6d4',
+    fields: ['label', 'span_start', 'span_end', 'annotation_data'],
+    labels: ['INTENT', 'SLOT', 'CONTEXT', 'ACTION', 'ENTITY', 'MODIFIER'],
+    labelColors: {
+      INTENT: 'bg-indigo-500',
+      SLOT: 'bg-teal-500',
+      CONTEXT: 'bg-blue-500',
+      ACTION: 'bg-green-500',
+      ENTITY: 'bg-purple-500',
+      MODIFIER: 'bg-orange-500',
+    }
+  },
+  CLASSIFICATION: {
+    value: 'classification',
+    label: 'Classification',
+    shortLabel: 'Class',
+    description: 'Assign categories to documents',
+    color: '#10b981',
+    fields: ['label', 'annotation_data'],  // No span fields
+    labels: ['SPAM', 'NOT_SPAM', 'POSITIVE', 'NEGATIVE', 'NEUTRAL', 'TECH', 'SPORTS', 'POLITICS', 'ENTERTAINMENT'],
+    labelColors: {
+      SPAM: 'bg-red-500',
+      NOT_SPAM: 'bg-green-500',
+      POSITIVE: 'bg-green-500',
+      NEGATIVE: 'bg-red-500',
+      NEUTRAL: 'bg-gray-500',
+      TECH: 'bg-blue-500',
+      SPORTS: 'bg-green-600',
+      POLITICS: 'bg-purple-600',
+      ENTERTAINMENT: 'bg-pink-500',
+    }
+  },
+  DEPENDENCY: {
+    value: 'dependency',
+    label: 'Dependency Parsing',
+    shortLabel: 'Dependency',
+    description: 'Show grammatical relationships',
+    color: '#3b82f6',
+    fields: ['label', 'span_start', 'span_end', 'annotation_data'],
+    labels: ['NSUBJ', 'DOBJ', 'AMOD', 'PREP', 'DET', 'ROOT', 'PUNCT'],
+    labelColors: {
+      NSUBJ: 'bg-blue-500',
+      DOBJ: 'bg-green-500',
+      AMOD: 'bg-purple-500',
+      PREP: 'bg-yellow-500',
+      DET: 'bg-pink-500',
+      ROOT: 'bg-red-600',
+      PUNCT: 'bg-gray-500',
+    }
+  },
+  COREFERENCE: {
+    value: 'coreference',
+    label: 'Coreference Resolution',
+    shortLabel: 'Coref',
+    description: 'Link mentions of the same entity',
+    color: '#a78bfa',
+    fields: ['label', 'span_start', 'span_end', 'annotation_data'],
+    labels: [], // Dynamically generated (CHAIN_1, CHAIN_2, ...)
+    labelColors: {
+      CHAIN_1: 'bg-blue-400',
+      CHAIN_2: 'bg-green-400',
+      CHAIN_3: 'bg-purple-400',
+      CHAIN_4: 'bg-yellow-400',
+      CHAIN_5: 'bg-pink-400',
+    }
+  },
 };
 
-export const ANNOTATION_STATUS = {
+export const ANNOTATION_STATUSES = {
   PENDING: 'pending',
   IN_PROGRESS: 'in_progress',
   SUBMITTED: 'submitted',
@@ -15,151 +156,6 @@ export const ANNOTATION_STATUS = {
 export const RESOURCE_STATUS = {
   ACTIVE: 'active',
   ARCHIVED: 'archived'
-};
-
-// Annotation Sub-Types - the specific annotation tasks within the text module
-export const ANNOTATION_SUB_TYPES = {
-  NER: 'ner',
-  POS: 'pos',
-  SENTIMENT: 'sentiment',
-  RELATION: 'relation',
-  SPAN: 'span',
-  CLASSIFICATION: 'classification',
-  DEPENDENCY: 'dependency',
-  COREFERENCE: 'coreference'
-};
-
-// Configuration for each annotation sub-type
-export const ANNOTATION_SUB_TYPE_CONFIG = {
-  [ANNOTATION_SUB_TYPES.NER]: {
-    label: 'Named Entity Recognition',
-    description: 'Identify and classify named entities (PERSON, ORG, GPE, etc.)',
-    fields: ['label', 'span_start', 'span_end', 'annotation_data'],
-    dataStructure: {
-      entity_text: { type: 'string', required: true },
-      confidence: { type: 'float', optional: true },
-      nested: { type: 'boolean', optional: true }
-    },
-    labels: ['PERSON', 'ORG', 'GPE', 'LOC', 'DATE', 'MONEY', 'PERCENT', 'TIME', 'CARDINAL', 'ORDINAL', 'EVENT', 'WORK_OF_ART', 'LAW', 'LANGUAGE', 'PRODUCT', 'FAC']
-  },
-  
-  [ANNOTATION_SUB_TYPES.POS]: {
-    label: 'Part-of-Speech Tagging',
-    description: 'Tag each token with its part of speech (NOUN, VERB, ADJ, etc.)',
-    fields: ['label', 'span_start', 'span_end', 'annotation_data'],
-    dataStructure: {
-      token: { type: 'string', required: true },
-      token_index: { type: 'integer', required: true },
-      batch: { type: 'boolean', optional: true }
-    },
-    labels: ['NOUN', 'VERB', 'ADJ', 'ADV', 'PRON', 'DET', 'ADP', 'CONJ', 'PRT', 'NUM', 'X', '.']
-  },
-  
-  [ANNOTATION_SUB_TYPES.SENTIMENT]: {
-    label: 'Sentiment Analysis',
-    description: 'Analyze sentiment of text segments (positive, negative, neutral)',
-    fields: ['label', 'span_start', 'span_end', 'annotation_data'],
-    dataStructure: {
-      text: { type: 'string', required: true },
-      intensity: { type: 'integer', min: 0, max: 100, required: true },
-      emotions: { type: 'object', optional: true }
-    },
-    labels: ['positive', 'negative', 'neutral']
-  },
-  
-  [ANNOTATION_SUB_TYPES.RELATION]: {
-    label: 'Relation Extraction',
-    description: 'Identify relationships between entities (e.g., "PERSON works_for ORG")',
-    fields: ['label', 'annotation_data'],
-    dataStructure: {
-      head_entity: { type: 'object', required: true },
-      tail_entity: { type: 'object', required: true },
-      relation_label: { type: 'string', required: true },
-      confidence: { type: 'float', optional: true }
-    },
-    labels: ['works_for', 'located_in', 'born_in', 'married_to', 'has_child', 'member_of', 'founded', 'owns', 'lives_in', 'other']
-  },
-  
-  [ANNOTATION_SUB_TYPES.SPAN]: {
-    label: 'Span/Sequence Labeling',
-    description: 'Label text spans with categories (supports overlapping spans)',
-    fields: ['label', 'span_start', 'span_end', 'annotation_data'],
-    dataStructure: {
-      text: { type: 'string', required: true },
-      category: { type: 'string', required: true },
-      subcategory: { type: 'string', optional: true },
-      overlaps_with: { type: 'array', optional: true },
-      priority: { type: 'integer', min: 1, max: 5, required: true }
-    },
-    labels: ['PRODUCT', 'EVENT', 'WORK_OF_ART', 'LAW', 'LANGUAGE', 'PERSON', 'ORG', 'GPE', 'LOC', 'DATE', 'TIME', 'MONEY', 'PERCENT', 'QUANTITY']
-  },
-  
-  [ANNOTATION_SUB_TYPES.CLASSIFICATION]: {
-    label: 'Document Classification',
-    description: 'Classify entire documents into categories (binary, multi-class, multi-label)',
-    fields: ['label', 'annotation_data'],
-    dataStructure: {
-      classes: { type: 'array', required: true },
-      classification_type: { type: 'string', enum: ['binary', 'multi_class', 'multi_label'], required: true },
-      reasoning: { type: 'string', optional: true }
-    },
-    labels: ['sports', 'politics', 'technology', 'health', 'entertainment', 'business', 'science', 'world']
-  },
-  
-  [ANNOTATION_SUB_TYPES.DEPENDENCY]: {
-    label: 'Dependency Parsing',
-    description: 'Analyze grammatical relationships between words',
-    fields: ['label', 'annotation_data'],
-    dataStructure: {
-      head_token: { type: 'string', required: true },
-      dependent_token: { type: 'string', required: true },
-      head_index: { type: 'integer', required: true },
-      dependent_index: { type: 'integer', required: true },
-      relation: { type: 'string', required: true },
-      is_root: { type: 'boolean', optional: true }
-    },
-    labels: ['nsubj', 'obj', 'iobj', 'nsubjpass', 'csubj', 'ccomp', 'xcomp', 'mark', 'advcl', 'det', 'amod', 'nummod', 'compound', 'prep', 'pobj', 'conj', 'cc', 'root']
-  },
-  
-  [ANNOTATION_SUB_TYPES.COREFERENCE]: {
-    label: 'Coreference Resolution',
-    description: 'Identify mentions that refer to the same entity across the text',
-    fields: ['label', 'span_start', 'span_end', 'annotation_data'],
-    dataStructure: {
-      mention_text: { type: 'string', required: true },
-      chain_id: { type: 'string', required: true },
-      mention_type: { type: 'string', enum: ['pronoun', 'proper_noun', 'common_noun'], required: true },
-      is_representative: { type: 'boolean', optional: true },
-      other_mentions: { type: 'array', optional: true }
-    },
-    labels: ['representative', 'pronoun', 'proper_noun', 'common_noun']
-  }
-};
-
-// Helper function to get config for a sub-type
-export const getSubTypeConfig = (subType) => {
-  return ANNOTATION_SUB_TYPE_CONFIG[subType] || ANNOTATION_SUB_TYPE_CONFIG[ANNOTATION_SUB_TYPES.NER];
-};
-
-// Helper function to get labels for a sub-type
-export const getSubTypeLabels = (subType) => {
-  const config = getSubTypeConfig(subType);
-  return config.labels || [];
-};
-
-// Helper function to get data structure for a sub-type
-export const getSubTypeDataStructure = (subType) => {
-  const config = getSubTypeConfig(subType);
-  return config.dataStructure || {};
-};
-
-// Helper function to get all sub-type options for a dropdown
-export const getSubTypeOptions = () => {
-  return Object.entries(ANNOTATION_SUB_TYPE_CONFIG).map(([key, config]) => ({
-    value: key,
-    label: config.label,
-    description: config.description
-  }));
 };
 
 export const QUEUE_TASK_TYPES = {
@@ -174,4 +170,24 @@ export const QUEUE_TASK_STATUS = {
   PROCESSING: 'processing',
   DONE: 'done',
   FAILED: 'failed'
+};
+
+// Helper function to get config for a sub-type
+export const getSubTypeConfig = (subType) => {
+  return Object.values(ANNOTATION_SUB_TYPES).find(type => type.value === subType) || ANNOTATION_SUB_TYPES.NER;
+};
+
+// Helper function to get labels for a sub-type
+export const getSubTypeLabels = (subType) => {
+  const config = getSubTypeConfig(subType);
+  return config.labels || [];
+};
+
+// Helper function to get all sub-type options for a dropdown
+export const getSubTypeOptions = () => {
+  return Object.values(ANNOTATION_SUB_TYPES).map(config => ({
+    value: config.value,
+    label: config.label,
+    description: config.description
+  }));
 };
