@@ -72,7 +72,8 @@ export const useTextResources = (projectId) => {
 
   useEffect(() => {
     fetchResources();
-  }, [fetchResources]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [projectId]);
 
   return {
     resources,

@@ -90,7 +90,8 @@ export const useTextAnnotations = (projectId, filters = {}) => {
 
   useEffect(() => {
     fetchAnnotations();
-  }, [fetchAnnotations]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [projectId, JSON.stringify(filters)]);
 
   return {
     annotations,

@@ -32,13 +32,16 @@ const TextAnnotationWorkspace = ({ projectId, userRole }) => {
     submitAnnotation,
     reviewAnnotation,
     fetchAnnotations,
-  } = useTextAnnotations(projectId, selectedResource ? { resource_id: selectedResource.id } : {});
+  } = useTextAnnotations(
+    projectId, 
+    activeTab === 'review' ? { status: 'submitted' } : (selectedResource ? { resource_id: selectedResource.id } : {})
+  );
 
   // Determine user capabilities based on role (convert to uppercase for comparison)
   const normalizedRole = userRole ? userRole.toUpperCase() : '';
   const canUpload = ['ADMIN', 'PROJECT_MANAGER', 'ANNOTATOR'].includes(normalizedRole);
   const canAnnotate = ['ADMIN', 'PROJECT_MANAGER', 'ANNOTATOR'].includes(normalizedRole);
-  const canReview = ['ADMIN', 'PROJECT_MANAGER'].includes(normalizedRole);
+  const canReview = ['ADMIN', 'PROJECT_MANAGER', 'REVIEWER'].includes(normalizedRole);
 
   const handleResourceSelect = async (resource) => {
     setSelectedResource(resource);

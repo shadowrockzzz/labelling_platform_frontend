@@ -1,5 +1,5 @@
 import React from 'react';
-import { ANNOTATION_STATUS } from '../../features/text-annotation/constants';
+import { ANNOTATION_STATUS, getSubTypeConfig } from '../../features/text-annotation/constants';
 
 const statusColors = {
   pending: 'bg-gray-100 text-gray-800',
@@ -52,7 +52,10 @@ const AnnotationList = ({
                 <div className="flex-1">
                   <div className="flex items-center space-x-2 mb-2">
                     <span className="font-medium text-gray-900">
-                      {annotation.annotation_type?.toUpperCase()}
+                      {getSubTypeConfig(annotation.annotation_sub_type)?.label || annotation.annotation_sub_type?.toUpperCase() || 'TEXT'}
+                    </span>
+                    <span className="inline-flex items-center px-2 py-1 rounded-md text-xs font-medium bg-blue-100 text-blue-800">
+                      TEXT
                     </span>
                     <span className={`inline-flex items-center px-2 py-1 rounded-md text-xs font-medium ${statusColors[annotation.status] || statusColors.pending}`}>
                       {annotation.status?.replace('_', ' ')}
