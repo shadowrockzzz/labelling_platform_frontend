@@ -133,9 +133,7 @@ export const ProjectDetail = () => {
 
   const handleAddReviewers = async () => {
     try {
-      for (const userId of selectedUsers) {
-        await assignmentService.addReviewer(id, userId);
-      }
+      await assignmentService.addReviewers(id, selectedUsers);
       toast.success(`Added ${selectedUsers.length} reviewer(s)`);
       setShowAddReviewerModal(false);
       setSelectedUsers([]);
@@ -147,9 +145,7 @@ export const ProjectDetail = () => {
 
   const handleAddAnnotators = async () => {
     try {
-      for (const userId of selectedUsers) {
-        await assignmentService.addAnnotator(id, userId);
-      }
+      await assignmentService.addAnnotators(id, selectedUsers);
       toast.success(`Added ${selectedUsers.length} annotator(s)`);
       setShowAddAnnotatorModal(false);
       setSelectedUsers([]);

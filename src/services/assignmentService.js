@@ -6,8 +6,8 @@ export const assignmentService = {
     return response.data;
   },
 
-  async addReviewer(projectId, userId) {
-    const response = await api.post(`/projects/${projectId}/reviewers`, { user_id: userId });
+  async addReviewers(projectId, userIds) {
+    const response = await api.post(`/projects/${projectId}/reviewers`, { user_ids: userIds });
     return response.data;
   },
 
@@ -16,8 +16,8 @@ export const assignmentService = {
     return response.data;
   },
 
-  async addAnnotator(projectId, userId) {
-    const response = await api.post(`/projects/${projectId}/annotators`, { user_id: userId });
+  async addAnnotators(projectId, userIds) {
+    const response = await api.post(`/projects/${projectId}/annotators`, { user_ids: userIds });
     return response.data;
   },
 
