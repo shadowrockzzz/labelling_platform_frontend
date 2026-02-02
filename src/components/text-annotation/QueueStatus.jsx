@@ -1,8 +1,15 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useContext } from 'react';
 import { textAnnotationService } from '../../services/textAnnotationService';
 import { QUEUE_TASK_STATUS } from '../../features/text-annotation/constants';
+import { AuthContext } from '../../contexts/AuthContext';
 
 const QueueStatus = ({ projectId }) => {
+  const { user } = useContext(AuthContext);
+  
+  // Only show QueueStatus to admins and project managers
+  if (!user || (user.role !== 'admin' && user.role !== 'project_manager')) {
+    return null;
+  }
   const [tasks, setTasks] = useState([]);
   const [loading, setLoading] = useState(false);
 

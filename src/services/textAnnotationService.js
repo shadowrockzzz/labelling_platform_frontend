@@ -1,6 +1,6 @@
 import api from './api';
 
-const API_BASE = '/api/v1/annotations/text';
+const API_BASE = '/annotations/text';
 
 export const textAnnotationService = {
   // List annotations for a project
