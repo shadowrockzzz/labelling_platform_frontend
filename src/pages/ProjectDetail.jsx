@@ -19,6 +19,7 @@ import { projectService } from '../services/projectService.js';
 import { assignmentService } from '../services/assignmentService.js';
 import { userService } from '../services/userService.js';
 import { LoadingSpinner } from '../components/common/LoadingSpinner.jsx';
+import TextAnnotationWorkspace from '../components/text-annotation/TextAnnotationWorkspace.jsx';
 import toast from 'react-hot-toast';
 
 export const ProjectDetail = () => {
@@ -66,8 +67,10 @@ export const ProjectDetail = () => {
 
   const fetchTeam = async () => {
     try {
-      const teamData = await assignmentService.getProjectTeam(id);
-      setTeam(teamData);
+      const response = await assignmentService.getProjectTeam(id);
+      // The backend returns {success: true, data: {manager, reviewers, annotators}}
+      // Extract the nested data from the response
+      setTeam(response.data || { manager: null, reviewers: [], annotators: [] });
     } catch (error) {
       toast.error('Failed to fetch team');
     }
@@ -96,6 +99,13 @@ export const ProjectDetail = () => {
     }
   }, [showAddReviewerModal, showAddAnnotatorModal]);
 
+  // Refresh team data when switching to team tab
+  useEffect(() => {
+    if (activeTab === 'team') {
+      fetchTeam();
+    }
+  }, [activeTab]);
+
   const handleStatusChange = async (newStatus) => {
     try {
       await projectService.updateProject(id, { status: newStatus });
@@ -115,6 +125,7 @@ export const ProjectDetail = () => {
       });
       toast.success('Project updated successfully');
       fetchProject();
+      fetchTeam(); // Refresh team to get updated manager
     } catch (error) {
       toast.error('Failed to update project');
     }
@@ -272,6 +283,16 @@ export const ProjectDetail = () => {
             Overview
           </button>
           <button
+            onClick={() => setActiveTab('annotations')}
+            className={`pb-4 border-b-2 font-medium transition-colors ${
+              activeTab === 'annotations'
+                ? 'border-primary-600 text-primary-600'
+                : 'border-transparent text-gray-600 hover:text-gray-900'
+            }`}
+          >
+            Annotations
+          </button>
+          <button
             onClick={() => setActiveTab('team')}
             className={`pb-4 border-b-2 font-medium transition-colors ${
               activeTab === 'team'
@@ -357,6 +378,14 @@ export const ProjectDetail = () => {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Annotations Tab */}
+      {activeTab === 'annotations' && (
+        <TextAnnotationWorkspace 
+          projectId={id} 
+          userRole={currentUser?.role} 
+        />
       )}
 
       {/* Team Tab */}

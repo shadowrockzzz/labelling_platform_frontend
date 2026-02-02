@@ -3,7 +3,7 @@ import api from './api';
 export const assignmentService = {
   async getProjectTeam(projectId) {
     const response = await api.get(`/projects/${projectId}/team`);
-    return response.data.data;
+    return response.data;
   },
 
   async addReviewer(projectId, userId) {

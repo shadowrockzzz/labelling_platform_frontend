@@ -1,9 +1,12 @@
 import { useState, useEffect } from 'react';
-import { Plus, Search, Edit, Archive, Eye } from 'lucide-react';
+import { Plus, Search, Edit, Archive, ArchiveRestore, Eye } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext.jsx';
 import { StatusBadge, PROJECT_STATUS_OPTIONS } from '../utils/roleHelpers.jsx';
 import { projectService } from '../services/projectService.js';
 import { LoadingSpinner } from '../components/common/LoadingSpinner.jsx';
+import { Modal } from '../components/common/Modal.jsx';
+import { ConfirmModal } from '../components/common/ConfirmModal.jsx';
+import { ProjectForm } from '../components/projects/ProjectForm.jsx';
 import toast from 'react-hot-toast';
 
 export const ProjectList = () => {
@@ -12,6 +15,13 @@ export const ProjectList = () => {
   const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState('all');
   const [searchTerm, setSearchTerm] = useState('');
+  
+  // Modal states
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [showArchiveModal, setShowArchiveModal] = useState(false);
+  const [selectedProject, setSelectedProject] = useState(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const fetchProjects = async () => {
     try {
@@ -76,6 +86,77 @@ export const ProjectList = () => {
     return user.role === 'admin' || user.role === 'project_manager';
   };
 
+  // Create project handler
+  const handleCreateProject = async (projectData) => {
+    try {
+      setIsSubmitting(true);
+      await projectService.createProject(projectData);
+      toast.success('Project created successfully');
+      setShowCreateModal(false);
+      fetchProjects();
+    } catch (error) {
+      console.error('Create project error:', error);
+      toast.error(error.response?.data?.detail || 'Failed to create project');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  // Edit project handler
+  const handleEditProject = async (projectData) => {
+    if (!selectedProject) return;
+
+    try {
+      setIsSubmitting(true);
+      await projectService.updateProject(selectedProject.id, projectData);
+      toast.success('Project updated successfully');
+      setShowEditModal(false);
+      setSelectedProject(null);
+      fetchProjects();
+    } catch (error) {
+      console.error('Update project error:', error);
+      toast.error(error.response?.data?.detail || 'Failed to update project');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  // Open edit modal
+  const openEditModal = (project) => {
+    setSelectedProject(project);
+    setShowEditModal(true);
+  };
+
+  // Archive/Restore project handler
+  const handleArchiveProject = async () => {
+    if (!selectedProject) return;
+
+    try {
+      setIsSubmitting(true);
+      const newStatus = selectedProject.status === 'archived' ? 'active' : 'archived';
+      await projectService.updateProject(selectedProject.id, {
+        name: selectedProject.name,
+        description: selectedProject.description,
+        status: newStatus
+      });
+      toast.success(`Project ${newStatus === 'archived' ? 'archived' : 'restored'} successfully`);
+      setShowArchiveModal(false);
+      setSelectedProject(null);
+      fetchProjects();
+    } catch (error) {
+      console.error('Archive project error:', error);
+      toast.error(error.response?.data?.detail || 'Failed to update project status');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  // Open archive modal
+  const openArchiveModal = (project) => {
+    setSelectedProject(project);
+    setShowArchiveModal(true);
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -94,7 +175,10 @@ export const ProjectList = () => {
             <p className="text-gray-600">{getSubtitle()}</p>
           </div>
           {canEditProject() && (
-            <button className="flex items-center gap-2 bg-primary-600 text-white px-4 py-2 rounded-lg hover:bg-primary-700 transition-colors">
+            <button 
+              onClick={() => setShowCreateModal(true)}
+              className="flex items-center gap-2 bg-primary-600 text-white px-4 py-2 rounded-lg hover:bg-primary-700 transition-colors"
+            >
               <Plus className="w-4 h-4" />
               New Project
             </button>
@@ -188,16 +272,22 @@ export const ProjectList = () => {
                 {canEditProject() && (
                   <>
                     <button
+                      onClick={() => openEditModal(project)}
                       className="flex-1 flex items-center justify-center gap-2 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
                     >
                       <Edit className="w-4 h-4" />
                       Edit
                     </button>
                     <button
+                      onClick={() => openArchiveModal(project)}
                       className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
-                      title="Archive"
+                      title={project.status === 'archived' ? 'Restore' : 'Archive'}
                     >
-                      <Archive className="w-4 h-4 text-gray-600" />
+                      {project.status === 'archived' ? (
+                        <ArchiveRestore className="w-4 h-4 text-green-600" />
+                      ) : (
+                        <Archive className="w-4 h-4 text-gray-600" />
+                      )}
                     </button>
                   </>
                 )}
@@ -206,6 +296,66 @@ export const ProjectList = () => {
           ))}
         </div>
       )}
+
+      {/* Create Project Modal */}
+      <Modal
+        isOpen={showCreateModal}
+        onClose={() => setShowCreateModal(false)}
+        title="Create New Project"
+        size="lg"
+      >
+        <ProjectForm
+          project={null}
+          onSubmit={handleCreateProject}
+          onCancel={() => setShowCreateModal(false)}
+          isSubmitting={isSubmitting}
+        />
+      </Modal>
+
+      {/* Edit Project Modal */}
+      <Modal
+        isOpen={showEditModal}
+        onClose={() => {
+          setShowEditModal(false);
+          setSelectedProject(null);
+        }}
+        title="Edit Project"
+        size="lg"
+      >
+        {selectedProject && (
+          <ProjectForm
+            project={selectedProject}
+            onSubmit={handleEditProject}
+            onCancel={() => {
+              setShowEditModal(false);
+              setSelectedProject(null);
+            }}
+            isSubmitting={isSubmitting}
+          />
+        )}
+      </Modal>
+
+      {/* Archive/Restore Confirmation Modal */}
+      <ConfirmModal
+        isOpen={showArchiveModal}
+        onClose={() => {
+          setShowArchiveModal(false);
+          setSelectedProject(null);
+        }}
+        onConfirm={handleArchiveProject}
+        title={selectedProject?.status === 'archived' ? 'Restore Project' : 'Archive Project'}
+        message={selectedProject?.status === 'archived' 
+          ? `Are you sure you want to restore "${selectedProject?.name}"?` 
+          : `Are you sure you want to archive "${selectedProject?.name}"?`
+        }
+        description={selectedProject?.status === 'archived'
+          ? 'Restoring this project will make it active and accessible to all team members.'
+          : 'Archived projects will be hidden from regular users and cannot be modified until restored.'
+        }
+        confirmText={selectedProject?.status === 'archived' ? 'Restore' : 'Archive'}
+        isLoading={isSubmitting}
+        type={selectedProject?.status === 'archived' ? 'info' : 'warning'}
+      />
     </div>
   );
 };
