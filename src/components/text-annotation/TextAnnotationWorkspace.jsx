@@ -10,7 +10,7 @@ import ReviewPanel from './ReviewPanel';
 import QueueStatus from './QueueStatus';
 import { ANNOTATION_STATUS } from '../../features/text-annotation/constants';
 
-const TextAnnotationWorkspace = ({ projectId, userRole }) => {
+const TextAnnotationWorkspace = ({ projectId, userRole, project }) => {
   const [selectedResource, setSelectedResource] = useState(null);
   const [editingAnnotation, setEditingAnnotation] = useState(null);
   const [showEditor, setShowEditor] = useState(false);
@@ -183,6 +183,7 @@ const TextAnnotationWorkspace = ({ projectId, userRole }) => {
               <TextAnnotationEditor
                 resource={selectedResource}
                 annotation={editingAnnotation}
+                annotationSubType={project?.config?.textSubType || ''}
                 onSave={handleSaveAnnotation}
                 onCancel={() => {
                   setShowEditor(false);

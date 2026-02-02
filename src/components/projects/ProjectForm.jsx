@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { ChevronDown, ChevronUp, Info, User as UserIcon } from 'lucide-react';
 import { LoadingSpinner } from '../common/LoadingSpinner.jsx';
 import { userService } from '../../services/userService.js';
+import { getSubTypeOptions } from '../../features/text-annotation/constants.js';
 
 /**
  * ProjectForm Component
@@ -87,13 +88,8 @@ export const ProjectForm = ({ project, onSubmit, onCancel, isSubmitting }) => {
     { value: 'archived', label: 'Archived' }
   ];
 
-  // Text annotation sub-types
-  const textSubTypes = [
-    { value: 'general', label: 'General' },
-    { value: 'ner', label: 'NER (Named Entity Recognition)' },
-    { value: 'classification', label: 'Classification' },
-    { value: 'sentiment', label: 'Sentiment Analysis' }
-  ];
+  // Use all 8 text annotation sub-types from constants
+  const textSubTypes = getSubTypeOptions();
 
   // Handle form field changes
   const handleChange = (e) => {
@@ -330,7 +326,7 @@ export const ProjectForm = ({ project, onSubmit, onCancel, isSubmitting }) => {
                   Annotation Sub-Type
                 </label>
                 <select
-                  value={formData.config.textSubType || 'general'}
+                  value={formData.config.textSubType || textSubTypes[0]?.value || ''}
                   onChange={(e) => handleConfigChange('textSubType', e.target.value)}
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
                   disabled={isSubmitting}
@@ -341,6 +337,11 @@ export const ProjectForm = ({ project, onSubmit, onCancel, isSubmitting }) => {
                     </option>
                   ))}
                 </select>
+                {formData.config.textSubType && (
+                  <p className="mt-1 text-xs text-gray-500">
+                    {textSubTypes.find(opt => opt.value === formData.config.textSubType)?.description}
+                  </p>
+                )}
               </div>
 
               {showAdvanced && (

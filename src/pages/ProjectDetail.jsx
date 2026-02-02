@@ -380,7 +380,8 @@ export const ProjectDetail = () => {
       {activeTab === 'annotations' && (
         <TextAnnotationWorkspace 
           projectId={id} 
-          userRole={currentUser?.role} 
+          userRole={currentUser?.role}
+          project={project}
         />
       )}
 

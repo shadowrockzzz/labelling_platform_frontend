@@ -1,8 +1,7 @@
 import React, { useState } from 'react';
 import { ANNOTATION_TYPES, ANNOTATION_SUB_TYPES, getSubTypeConfig, getSubTypeLabels } from '../../features/text-annotation/constants';
 
-const TextAnnotationEditor = ({ resource, annotation, onSave, onCancel, loading }) => {
-  const [annotationSubType, setAnnotationSubType] = useState(ANNOTATION_SUB_TYPES.NER);
+const TextAnnotationEditor = ({ resource, annotation, annotationSubType, onSave, onCancel, loading }) => {
   const [label, setLabel] = useState('');
   const [spanStart, setSpanStart] = useState('');
   const [spanEnd, setSpanEnd] = useState('');
@@ -11,7 +10,6 @@ const TextAnnotationEditor = ({ resource, annotation, onSave, onCancel, loading 
   // Initialize with existing annotation data if editing
   React.useEffect(() => {
     if (annotation) {
-      setAnnotationSubType(annotation.annotation_sub_type || ANNOTATION_SUB_TYPES.NER);
       setLabel(annotation.label || '');
       setSpanStart(annotation.span_start || '');
       setSpanEnd(annotation.span_end || '');
@@ -56,31 +54,19 @@ const TextAnnotationEditor = ({ resource, annotation, onSave, onCancel, loading 
           )}
         </div>
 
-        {/* Annotation Sub-Type */}
-        <div className="mb-4">
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Annotation Type
-          </label>
-          <select
-            value={annotationSubType}
-            onChange={(e) => setAnnotationSubType(e.target.value)}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-          >
-            {Object.values(ANNOTATION_SUB_TYPES).map((subType) => {
-              const config = getSubTypeConfig(subType);
-              return (
-                <option key={subType} value={subType}>
-                  {config.label}
-                </option>
-              );
-            })}
-          </select>
-          {subTypeConfig.description && (
-            <p className="mt-1 text-sm text-gray-500">
-              {subTypeConfig.description}
+        {/* Annotation Sub-Type Info (Read-only) */}
+        {annotationSubType && (
+          <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-md">
+            <p className="text-sm font-medium text-blue-900 mb-1">
+              Annotation Type: {subTypeConfig.label}
             </p>
-          )}
-        </div>
+            {subTypeConfig.description && (
+              <p className="text-xs text-blue-700">
+                {subTypeConfig.description}
+              </p>
+            )}
+          </div>
+        )}
 
         {/* Label */}
         {subTypeConfig.fields.includes('label') && (
