@@ -213,6 +213,7 @@ const TextAnnotationWorkspace = ({ projectId, userRole, project }) => {
                   setEditingAnnotation(null);
                 }}
                 loading={annotationsLoading}
+                projectConfig={project?.config || {}}
               />
             ) : (
               <>

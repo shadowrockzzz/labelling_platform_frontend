@@ -11,7 +11,8 @@ const TextAnnotationEditor = ({
   annotations = [],
   onSave, 
   onCancel,
-  loading 
+  loading,
+  projectConfig = {}
 }) => {
   const [selectedText, setSelectedText] = useState({ text: '', start: null, end: null });
   const [selectedLabel, setSelectedLabel] = useState('');
@@ -458,6 +459,7 @@ const TextAnnotationEditor = ({
           <div className="mb-6">
             <LabelPalette
               annotationType={annotationSubType}
+              projectConfig={projectConfig}
               onLabelSelect={handleLabelSelect}
               selectedLabel={selectedLabel}
             />

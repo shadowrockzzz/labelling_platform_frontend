@@ -1,17 +1,16 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { useForm } from 'react-hook-form';
 import { 
   ChevronLeft,
   Users,
   Trash2,
   Archive,
-  Edit,
   Plus,
   X,
   Search,
   User as UserIcon,
-  CheckCircle
+  CheckCircle,
+  Edit
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext.jsx';
 import { StatusBadge, PROJECT_STATUS_OPTIONS, RoleBadge } from '../utils/roleHelpers.jsx';
@@ -20,6 +19,7 @@ import { assignmentService } from '../services/assignmentService.js';
 import { userService } from '../services/userService.js';
 import { LoadingSpinner } from '../components/common/LoadingSpinner.jsx';
 import TextAnnotationWorkspace from '../components/text-annotation/TextAnnotationWorkspace.jsx';
+import { ProjectForm } from '../components/projects/ProjectForm.jsx';
 import toast from 'react-hot-toast';
 
 export const ProjectDetail = () => {
@@ -42,8 +42,8 @@ export const ProjectDetail = () => {
   // Settings states
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [confirmText, setConfirmText] = useState('');
-  
-  const settingsForm = useForm();
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   
   const canEdit = currentUser.role === 'admin' || currentUser.role === 'project_manager';
 
@@ -52,11 +52,6 @@ export const ProjectDetail = () => {
       setLoading(true);
       const data = await projectService.getProjectById(id);
       setProject(data);
-      settingsForm.reset({
-        name: data.name,
-        description: data.description,
-        status: data.status
-      });
     } catch (error) {
       toast.error('Failed to fetch project');
       navigate('/projects');
@@ -116,18 +111,18 @@ export const ProjectDetail = () => {
     }
   };
 
-  const handleSaveSettings = async (data) => {
+  const handleEditProject = async (formData) => {
     try {
-      await projectService.updateProject(id, {
-        name: data.name,
-        description: data.description,
-        status: data.status
-      });
+      setIsSubmitting(true);
+      await projectService.updateProject(id, formData);
       toast.success('Project updated successfully');
       fetchProject();
       fetchTeam(); // Refresh team to get updated manager
+      setShowEditModal(false);
     } catch (error) {
       toast.error('Failed to update project');
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -507,42 +502,38 @@ export const ProjectDetail = () => {
       {activeTab === 'settings' && canEdit && (
         <div className="space-y-6">
           <div className="card">
-            <form onSubmit={settingsForm.handleSubmit(handleSaveSettings)} className="space-y-4">
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="text-lg font-semibold">Project Settings</h3>
+              <button
+                onClick={() => setShowEditModal(true)}
+                className="flex items-center gap-2 px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700"
+              >
+                <Edit className="w-4 h-4" />
+                Edit Project
+              </button>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Project Name</label>
-                <input
-                  {...settingsForm.register('name', { required: 'Project name is required' })}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500"
-                />
+                <p className="text-sm text-gray-600 mb-1">Project Name</p>
+                <p className="text-lg font-semibold text-gray-900">{project.name}</p>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Description</label>
-                <textarea
-                  {...settingsForm.register('description')}
-                  rows={4}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500"
-                />
+                <p className="text-sm text-gray-600 mb-1">Status</p>
+                <StatusBadge status={project.status} />
+              </div>
+              <div className="md:col-span-2">
+                <p className="text-sm text-gray-600 mb-1">Description</p>
+                <p className="text-gray-900">{project.description || 'No description'}</p>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Status</label>
-                <select
-                  {...settingsForm.register('status', { required: 'Status is required' })}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500"
-                >
-                  {PROJECT_STATUS_OPTIONS.map(status => (
-                    <option key={status.value} value={status.value}>{status.label}</option>
-                  ))}
-                </select>
+                <p className="text-sm text-gray-600 mb-1">Annotation Type</p>
+                <p className="text-gray-900 capitalize">{project.annotation_type || 'None'}</p>
               </div>
-              <div className="flex justify-end">
-                <button
-                  type="submit"
-                  className="px-6 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700"
-                >
-                  Save Changes
-                </button>
+              <div>
+                <p className="text-sm text-gray-600 mb-1">Created</p>
+                <p className="text-gray-900">{new Date(project.created_at).toLocaleDateString()}</p>
               </div>
-            </form>
+            </div>
           </div>
 
           {/* Danger Zone */}
@@ -728,6 +719,25 @@ export const ProjectDetail = () => {
         </div>
       )}
 
+      {/* Edit Project Modal */}
+      {showEditModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
+            <div className="p-6 border-b border-gray-200">
+              <h2 className="text-xl font-semibold">Edit Project</h2>
+            </div>
+            <div className="flex-1 overflow-y-auto p-6">
+              <ProjectForm
+                project={project}
+                onSubmit={handleEditProject}
+                onCancel={() => setShowEditModal(false)}
+                isSubmitting={isSubmitting}
+              />
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Delete Confirmation Modal */}
       {showDeleteModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
@@ -737,8 +747,8 @@ export const ProjectDetail = () => {
             </div>
             <div className="p-6">
               <p className="text-gray-700 mb-4">
-                This will permanently delete the project and all associated assignments. 
-                Type the project name to confirm.
+                This will permanently delete project and all associated assignments. 
+                Type project name to confirm.
               </p>
               <input
                 type="text"

@@ -3,6 +3,7 @@ import { ChevronDown, ChevronUp, Info, User as UserIcon } from 'lucide-react';
 import { LoadingSpinner } from '../common/LoadingSpinner.jsx';
 import { userService } from '../../services/userService.js';
 import { getSubTypeOptions } from '../../features/text-annotation/constants.js';
+import LabelEditor from './LabelEditor.jsx';
 
 /**
  * ProjectForm Component
@@ -320,7 +321,7 @@ export const ProjectForm = ({ project, onSubmit, onCancel, isSubmitting }) => {
 
           {/* Text Annotation Settings */}
           {formData.annotation_type === 'text' && (
-            <div className={showAdvanced ? 'space-y-4' : 'space-y-4'}>
+            <div className={showAdvanced ? 'space-y-6' : 'space-y-6'}>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Annotation Sub-Type
@@ -342,6 +343,19 @@ export const ProjectForm = ({ project, onSubmit, onCancel, isSubmitting }) => {
                     {textSubTypes.find(opt => opt.value === formData.config.textSubType)?.description}
                   </p>
                 )}
+              </div>
+
+              {/* Label Configuration - Always visible for text annotation */}
+              <div className="border border-gray-200 rounded-lg p-4 bg-gray-50">
+                <h4 className="text-sm font-medium text-gray-900 mb-4">
+                  Label Palette Configuration
+                </h4>
+                <LabelEditor
+                  textSubType={formData.config.textSubType}
+                  config={formData.config}
+                  onConfigChange={handleConfigChange}
+                  isSubmitting={isSubmitting}
+                />
               </div>
 
               {showAdvanced && (

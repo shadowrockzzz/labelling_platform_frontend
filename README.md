@@ -28,6 +28,13 @@ A modern React-based frontend for an annotation platform with role-based authent
   - Reviewer: Review interface
   - Annotator: Annotation interface
 
+- **Text Annotation**
+  - Custom label support with hex colors
+  - Multiple annotation sub-types (NER, POS, Sentiment, etc.)
+  - Interactive label palette
+  - Real-time annotation editing
+  - Queue-based resource management
+
 ## Tech Stack
 
 - **Framework**: React 18.2.0
@@ -76,26 +83,59 @@ The app will be available at `http://localhost:5173`
 ```
 src/
 ├── components/
-│   ├── auth/              # Authentication components
+│   ├── auth/                    # Authentication components
 │   │   ├── ProtectedRoute.js
 │   │   └── RoleBasedRoute.js
-│   ├── common/            # Reusable components
-│   │   └── LoadingSpinner.js
-│   └── layout/           # Layout components
-│       └── Layout.js
-├── contexts/             # React contexts
+│   ├── common/                 # Reusable components
+│   │   ├── ConfirmModal.jsx
+│   │   ├── LoadingSpinner.js
+│   │   └── Modal.jsx
+│   ├── layout/                # Layout components
+│   │   └── Layout.js
+│   ├── projects/              # Project management components
+│   │   ├── ProjectForm.jsx
+│   │   ├── ColorPicker.jsx
+│   │   └── LabelEditor.jsx
+│   └── text-annotation/       # Text annotation components
+│       ├── TextAnnotationEditor.jsx
+│       ├── TextAnnotationWorkspace.jsx
+│       ├── AnnotationList.jsx
+│       ├── ResourceList.jsx
+│       ├── ResourceUploader.jsx
+│       ├── QueueStatus.jsx
+│       └── ReviewPanel.jsx
+├── contexts/                  # React contexts
 │   └── AuthContext.js
-├── pages/               # Page components
+├── features/                  # Feature-specific components
+│   └── text-annotation/
+│       ├── constants.js
+│       └── components/
+│           ├── LabelPalette.jsx
+│           └── HighlightableTextArea.jsx
+├── hooks/                    # Custom React hooks
+│   ├── useTextAnnotations.js
+│   └── useTextResources.js
+├── pages/                    # Page components
 │   ├── Login.js
-│   └── Dashboard.js
-├── services/            # API service layer
-│   ├── api.js
-│   └── authService.js
-├── utils/              # Helper functions
-│   └── constants.js
-├── App.js              # Main app component with routing
-├── main.jsx            # React entry point
-└── index.css           # Global styles and Tailwind
+│   ├── Dashboard.js
+│   ├── ProjectList.jsx
+│   ├── ProjectDetail.jsx
+│   ├── UserManagement.jsx
+│   └── Profile.jsx
+├── services/                 # API service layer
+│   ├── api.jsx
+│   ├── authService.jsx
+│   ├── userService.js
+│   ├── projectService.js
+│   ├── assignmentService.js
+│   ├── textAnnotationService.js
+│   └── textResourceService.js
+├── utils/                    # Helper functions
+│   ├── constants.js
+│   └── roleHelpers.jsx
+├── App.jsx                   # Main app component with routing
+├── main.jsx                  # React entry point
+└── index.css                 # Global styles and Tailwind
 ```
 
 ## Available Scripts
@@ -166,9 +206,52 @@ Custom components are defined in `index.css`:
 ### Adding New Pages
 
 1. Create page component in `src/pages/`
-2. Add route in `src/App.js`
-3. Update navigation in `src/components/layout/Layout.js`
+2. Add route in `src/App.jsx`
+3. Update navigation in `src/components/layout/Layout.jsx`
 4. Add protected route wrapper if needed
+
+### Custom Labels Feature
+
+The frontend supports custom labels for text annotation projects:
+
+**ColorPicker Component** (`src/components/projects/ColorPicker.jsx`)
+- Native browser color picker for full color spectrum
+- Hex color input with validation
+- Real-time color preview
+- Clean, simplified interface
+
+**LabelEditor Component** (`src/components/projects/LabelEditor.jsx`)
+- Toggle between default and custom labels
+- Add/remove labels dynamically (1-20 labels)
+- Edit label names and colors
+- Visual validation feedback
+- Auto-capitalizes label names
+- Preserves label selection when re-editing projects
+
+**LabelPalette Component** (`src/features/text-annotation/components/LabelPalette.jsx`)
+- Displays project-specific labels
+- Shows custom labels with configured colors
+- "Custom" badge for custom labels
+- Automatic text color contrast calculation
+
+**Usage:**
+1. Admin/Manager creates project with text annotation type
+2. Select annotation sub-type (NER, POS, Sentiment, etc.)
+3. Choose "Use Custom Labels" in Label Palette Configuration
+4. Add labels with custom colors (1-20 labels)
+5. Annotators see custom labels in annotation workspace
+
+**Supported Sub-Types:**
+- `ner` - Named Entity Recognition
+- `pos` - Part-of-Speech Tagging
+- `sentiment` - Sentiment Analysis
+- `span` - Span Annotation
+- `relation` - Relation Extraction
+- `classification` - Text Classification
+- `dependency` - Dependency Parsing
+- `coreference` - Coreference Resolution
+
+See [docs/CUSTOM_LABELS_FEATURE.md](../labelling_platform_backend/docs/CUSTOM_LABELS_FEATURE.md) for detailed documentation.
 
 ### Adding New API Endpoints
 
@@ -216,6 +299,23 @@ Check browser localStorage and ensure refresh token is stored correctly
 - Verify backend is running on correct port
 - Check network tab for error details
 - Verify API_URL in .env
+
+### Labels Not Appearing in Annotation Workspace
+- Verify project was saved with custom labels
+- Check `useCustomLabels` flag in project config
+- Refresh the annotation workspace
+- Check browser console for errors
+
+### Color Picker Not Working
+- Ensure browser supports native color picker
+- Try clicking the color preview box
+- Check for JavaScript errors in console
+
+### Label Editor Issues
+- Verify you have Admin or Project Manager role
+- Check that text annotation type is selected
+- Ensure annotation sub-type is chosen
+- Try reloading the page
 
 ## Production Deployment
 
