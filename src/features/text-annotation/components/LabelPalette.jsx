@@ -57,7 +57,7 @@ const LabelPalette = ({ annotationType, projectConfig, onLabelSelect, selectedLa
         </div>
       )}
 
-      <div className="grid grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
         {labels.map(label => {
           const colorValue = labelColors[label] || '#6B7280'; // gray-500
           const isSelected = selectedLabel === label;
@@ -73,7 +73,8 @@ const LabelPalette = ({ annotationType, projectConfig, onLabelSelect, selectedLa
                 borderColor: colorValue
               }}
               className={`
-                px-4 py-2 rounded-md font-medium text-sm transition-all
+                w-full px-6 py-3 min-h-[48px] rounded-md font-medium text-sm 
+                flex items-center justify-center whitespace-normal transition-all
                 border-2
                 ${isSelected 
                   ? 'text-white ring-2 ring-offset-2'

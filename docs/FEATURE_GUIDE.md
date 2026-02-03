@@ -556,6 +556,390 @@ class POSAnnotationData(BaseModel):
 
 ---
 
+## Classification Types: Binary, Multi-Class, and Multi-Label
+
+### Overview
+
+Understanding the differences between Binary, Multi-Class, and Multi-Label classification is essential for designing effective annotation projects. Each classification type serves different use cases and requires different annotation interfaces.
+
+### Binary Classification
+
+**Definition:** Classifies data into exactly 2 categories (mutually exclusive)
+
+**Characteristics:**
+- **Number of classes**: 2
+- **Labels per item**: Exactly 1
+- **Mutually exclusive**: Yes
+- **Output**: Single binary decision
+
+**Label Structure:**
+```
+Option A OR Option B (exactly one)
+```
+
+**Use Cases:**
+- Spam detection (Spam / Not Spam)
+- Medical diagnosis (Disease present / Absent)
+- Quality control (Pass / Fail)
+- Relevance filtering (Relevant / Irrelevant)
+- Sentiment analysis (Positive / Negative - simplified)
+
+**Examples in Annotation:**
+
+**1. Toxic Content Detection:**
+```json
+{
+  "annotation_type": "text",
+  "annotation_sub_type": "binary",
+  "resource_id": 1,
+  "label": "TOXIC",
+  "annotation_data": {
+    "text": "This is toxic content",
+    "binary_options": ["TOXIC", "NON_TOXIC"]
+  }
+}
+```
+
+**2. Sentiment Analysis (Binary):**
+```json
+{
+  "annotation_type": "text",
+  "annotation_sub_type": "sentiment",
+  "resource_id": 1,
+  "label": "positive",
+  "annotation_data": {
+    "classification_type": "binary",
+    "options": ["positive", "negative"]
+  }
+}
+```
+
+**UI Behavior:**
+- User selects exactly ONE label from 2 options
+- Radio buttons or single-select dropdown
+- Clear "this or that" choice
+- No multiple selections allowed
+
+---
+
+### Multi-Class Classification
+
+**Definition:** Classifies data into 3 or more categories (mutually exclusive)
+
+**Characteristics:**
+- **Number of classes**: 3 or more
+- **Labels per item**: Exactly 1
+- **Mutually exclusive**: Yes
+- **Output**: Single choice from multiple options
+
+**Label Structure:**
+```
+Choose ONE from: [Class A, Class B, Class C, Class D, ...]
+```
+
+**Use Cases:**
+- Document categorization (Sports, Politics, Technology, Health, Entertainment)
+- Image classification (Dog, Cat, Bird, Fish, Horse)
+- Named Entity Recognition (PERSON, ORGANIZATION, LOCATION, MISC)
+- Product categorization (Electronics, Clothing, Books, Home, Sports)
+- News topic classification (World, Business, Technology, Science, Health)
+
+**Examples in Annotation:**
+
+**1. Named Entity Recognition (NER):**
+```json
+{
+  "annotation_type": "text",
+  "annotation_sub_type": "ner",
+  "resource_id": 1,
+  "label": "PERSON",
+  "span_start": 10,
+  "span_end": 25,
+  "annotation_data": {
+    "entity_text": "John Doe",
+    "classification_type": "multi_class",
+    "available_classes": ["PERSON", "ORG", "GPE", "LOC", "DATE", "MONEY"]
+  }
+}
+```
+
+**2. Document Classification:**
+```json
+{
+  "annotation_type": "text",
+  "annotation_sub_type": "classification",
+  "resource_id": 1,
+  "label": "technology",
+  "annotation_data": {
+    "classification_type": "multi_class",
+    "classes": ["sports", "politics", "technology", "health", "entertainment"],
+    "reasoning": "Contains technical terminology"
+  }
+}
+```
+
+**3. Part-of-Speech Tagging:**
+```json
+{
+  "annotation_type": "text",
+  "annotation_sub_type": "pos",
+  "resource_id": 1,
+  "label": "NOUN",
+  "span_start": 0,
+  "span_end": 5,
+  "annotation_data": {
+    "token": "Apple",
+    "token_index": 0,
+    "classification_type": "multi_class",
+    "available_tags": ["NOUN", "VERB", "ADJ", "ADV", "PRON", "DET"]
+  }
+}
+```
+
+**UI Behavior:**
+- User selects exactly ONE label from multiple options
+- Radio buttons or single-select dropdown
+- Often displayed as clickable buttons in grid
+- Visual feedback for selected label
+- No multiple selections allowed
+
+---
+
+### Multi-Label Classification
+
+**Definition:** Classifies data into 3 or more categories (NOT mutually exclusive)
+
+**Characteristics:**
+- **Number of classes**: 3 or more
+- **Labels per item**: 0, 1, or many
+- **Mutually exclusive**: No
+- **Output**: Multiple labels can apply simultaneously
+
+**Label Structure:**
+```
+Select ANY combination from: [Tag A, Tag B, Tag C, Tag D, ...]
+Examples: [Tag A] OR [Tag A, Tag C] OR [Tag B, Tag D] OR []
+```
+
+**Use Cases:**
+- Movie genre tagging (Action + Comedy + Romance)
+- News article tagging (Politics + Economy + International)
+- Product features (Electronics + 5G + Water-resistant)
+- Document topics (Health + Technology + Finance)
+- Image attributes (Outdoor + People + Daytime + Sunny)
+
+**Examples in Annotation:**
+
+**1. Multi-Label Document Tagging:**
+```json
+{
+  "annotation_type": "text",
+  "annotation_sub_type": "classification",
+  "resource_id": 1,
+  "label": "technology",
+  "annotation_data": {
+    "classification_type": "multi_label",
+    "selected_labels": ["technology", "health", "business"],
+    "all_available_labels": ["sports", "politics", "technology", "health", "entertainment", "business", "science", "world"],
+    "reasoning": "Article discusses AI in healthcare industry"
+  }
+}
+```
+
+**2. Span/Sequence Labeling (Multi-Label):**
+```json
+{
+  "annotation_type": "text",
+  "annotation_sub_type": "span",
+  "resource_id": 1,
+  "label": "PRODUCT",
+  "span_start": 0,
+  "span_end": 15,
+  "annotation_data": {
+    "text": "iPhone 15 Pro",
+    "classification_type": "multi_label",
+    "labels": ["PRODUCT", "ELECTRONICS", "PREMIUM"],
+    "priority": 5
+  }
+}
+```
+
+**3. Relation Extraction (Multi-Label Relations):**
+```json
+{
+  "annotation_type": "text",
+  "annotation_sub_type": "relation",
+  "resource_id": 1,
+  "annotation_data": {
+    "classification_type": "multi_label",
+    "head_entity": {"text": "John", "type": "PERSON", "span": [0, 4]},
+    "tail_entity": {"text": "Apple", "type": "ORG", "span": [15, 20]},
+    "relations": ["works_for", "founded"],
+    "confidence": 0.95
+  }
+}
+```
+
+**UI Behavior:**
+- User can select ZERO, ONE, or MULTIPLE labels
+- Checkboxes or multi-select interface
+- Visual indication of selected labels
+- Can deselect all labels
+- Often shown as toggles or checkboxes
+
+---
+
+### Comparison Summary
+
+| Feature | Binary | Multi-Class | Multi-Label |
+|----------|---------|-------------|-------------|
+| **Number of classes** | 2 | 3+ | 3+ |
+| **Labels per item** | Exactly 1 | Exactly 1 | 0, 1, or many |
+| **Mutually exclusive** | Yes | Yes | No |
+| **UI Pattern** | Radio buttons / Toggle | Radio buttons / Dropdown | Checkboxes / Multi-select |
+| **Example** | Spam / Not Spam | Dog / Cat / Bird | Action / Comedy / Romance |
+| **Model Type** | Binary classifier | Multi-class classifier | Multi-label classifier |
+| **Loss Function** | Binary cross-entropy | Cross-entropy | Binary cross-entropy (per label) |
+
+### Classification Types in Your System
+
+Based on the annotation sub-types supported:
+
+#### Binary Classification Sub-Types
+- **Sentiment Analysis** (can be configured as binary: positive/negative)
+- **Custom binary projects** (user-configured)
+
+#### Multi-Class Classification Sub-Types
+- **Named Entity Recognition (NER)** - Select exactly one entity type per span
+- **Part-of-Speech Tagging (POS)** - Select exactly one POS tag per token
+- **Document Classification** - Select exactly one category per document
+- **Dependency Parsing** - Select exactly one relation type
+
+#### Multi-Label Classification Sub-Types
+- **Span/Sequence Labeling** - Can apply multiple labels to same span
+- **Relation Extraction** - Can have multiple relations between entities
+- **Coreference Resolution** - Can assign multiple mentions to same entity
+- **Custom multi-label projects** - User can configure as multi-label
+
+### When to Use Each Type
+
+#### Use Binary Classification When:
+- You have a simple yes/no decision
+- The distinction is clear-cut
+- You want fast, straightforward annotation
+- Examples: Spam detection, quality control, toxicity
+
+#### Use Multi-Class Classification When:
+- You have multiple distinct categories
+- Each item belongs to exactly one category
+- Categories don't overlap
+- Examples: NER, POS tagging, topic classification
+
+#### Use Multi-Label Classification When:
+- Items can have multiple characteristics simultaneously
+- Labels are not mutually exclusive
+- You want to capture complex, overlapping concepts
+- Examples: Genre tagging, feature extraction, topic modeling
+
+### Choosing the Right Classification Type
+
+**Decision Tree:**
+
+```
+Start
+   │
+   ├─ How many classes do you need?
+   │   ├─ 2 classes → Binary
+   │   └─ 3+ classes → Continue
+   │
+   └─ Can an item belong to multiple classes?
+       ├─ No (mutually exclusive) → Multi-Class
+       └─ Yes (can have multiple) → Multi-Label
+```
+
+**Examples:**
+
+1. **Spam detection:**
+   - Classes: Spam, Not Spam (2) → **Binary**
+
+2. **Movie category:**
+   - Classes: Action, Comedy, Drama, Horror, etc. (3+)
+   - Can a movie be both Action and Comedy? Yes → **Multi-Label**
+
+3. **Sentiment analysis:**
+   - Classes: Positive, Negative (2) → **Binary**
+   - Classes: Positive, Negative, Neutral (3+)
+   - Can text be both positive and negative? No → **Multi-Class**
+
+4. **Named Entity Recognition:**
+   - Classes: PERSON, ORG, LOC, etc. (3+)
+   - Can an entity be both PERSON and ORG? No → **Multi-Class**
+
+5. **Product categorization:**
+   - Classes: Electronics, Clothing, Books, etc. (3+)
+   - Can a product be in multiple categories? Yes → **Multi-Label**
+
+### Configuration in Project Form
+
+When creating a project, you can specify the classification type:
+
+**Text Annotation Settings:**
+```
+Annotation Sub-Type: [General, NER, POS, Classification, etc.]
+
+Advanced Settings:
+├─ Classification Type: [Binary, Multi-Class, Multi-Label]
+├─ Label Selection: [Single Select, Multi-Select]
+└─ Number of Labels: [2, 3, 5, 10, Custom]
+```
+
+**Dynamic UI:**
+- **Binary**: Shows 2 radio buttons or toggle
+- **Multi-Class**: Shows radio buttons or single-select dropdown
+- **Multi-Label**: Shows checkboxes or multi-select interface
+
+### ML Model Considerations
+
+**Binary Classification:**
+- Model: Binary classifier
+- Output: Single probability (0-1)
+- Loss: Binary cross-entropy
+- Evaluation: Accuracy, Precision, Recall, F1
+
+**Multi-Class Classification:**
+- Model: Multi-class classifier
+- Output: Probability distribution over classes
+- Loss: Categorical cross-entropy
+- Evaluation: Accuracy, Confusion Matrix
+
+**Multi-Label Classification:**
+- Model: Multiple binary classifiers (one per label)
+- Output: Probability for each label independently
+- Loss: Binary cross-entropy (summed over labels)
+- Evaluation: Precision@k, Hamming loss, Subset accuracy
+
+### Best Practices
+
+**For Binary Classification:**
+- Keep the two classes balanced
+- Use clear, unambiguous labels
+- Consider "None" or "Other" if edge cases exist
+- Provide annotator guidelines with examples
+
+**For Multi-Class Classification:**
+- Ensure classes are mutually exclusive
+- Use descriptive, distinct class names
+- Provide annotator guidelines for edge cases
+- Consider hierarchical classification if many classes
+
+**For Multi-Label Classification:**
+- Design labels to be semantically independent
+- Limit number of labels (5-15 is typical)
+- Provide clear guidelines for co-occurrence
+- Consider label hierarchy for organization
+
+---
+
 ## Queue Management
 
 ### Overview
