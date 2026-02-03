@@ -72,6 +72,17 @@ npm test
 
 ## Recent Updates
 
+### Classification Type Configuration (February 3, 2026)
+- Project configuration now includes classification type selector
+- Three classification types supported:
+  - **Binary**: 2 classes, mutually exclusive selection
+  - **Multi-Class**: 3+ classes, mutually exclusive selection
+  - **Multi-Label**: 3+ classes, can select multiple labels simultaneously
+- LabelPalette automatically adapts behavior based on project's classification type
+- TextAnnotationEditor displays classification type configuration
+- Eliminates need to manually configure classification type for each annotation
+- Classification type is stored in project config and applied project-wide
+
 ### S3/MinIO Integration (February 2, 2026)
 - Text content now displays properly from S3 storage
 - File uploads work with MinIO (development) and AWS S3 (production)

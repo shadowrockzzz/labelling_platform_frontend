@@ -39,17 +39,14 @@ const TextAnnotationEditor = ({
   // Handle label selection from LabelPalette
   const handleLabelSelect = (label) => {
     setSelectedLabel(label);
-    // For span-based types, auto-create annotation when both text and label are selected
-    if (selectedText.text && showSpanFields) {
-      createAnnotationFromSelection(label);
-    }
+    // Removed auto-save - annotation is only created when clicking "Save & Continue" button
   };
 
   // Create annotation from selected text and label
   const createAnnotationFromSelection = (label) => {
     const data = {
       resource_id: resource.id,
-      annotation_type: 'text', // Always 'text' for this module
+      annotation_type: 'text',
       annotation_sub_type: annotationSubType,
       label: label,
       span_start: selectedText.start,
@@ -57,7 +54,7 @@ const TextAnnotationEditor = ({
       annotation_data: buildAnnotationData(label)
     };
     onSave(data);
-    // Reset selection
+    // Reset selection but keep editor open for continuous annotation
     setSelectedText({ text: '', start: null, end: null });
     setSelectedLabel('');
   };
@@ -135,7 +132,7 @@ const TextAnnotationEditor = ({
   };
 
   // Handle manual save (for non-span types or manual edits)
-  const handleManualSave = (e) => {
+  const handleManualSave = (e, closeEditor = false) => {
     e.preventDefault();
     
     const data = {
@@ -145,10 +142,34 @@ const TextAnnotationEditor = ({
       label: selectedLabel || annotationData.label || null,
       span_start: showSpanFields ? selectedText.start : null,
       span_end: showSpanFields ? selectedText.end : null,
-      annotation_data: annotationData
+      annotation_data: showSpanFields && selectedLabel ? buildAnnotationData(selectedLabel) : annotationData
     };
 
-    onSave(data);
+    onSave(data, closeEditor);
+  };
+
+  // Handle save and continue annotation
+  const handleSaveAndContinue = (e) => {
+    e.preventDefault();
+    
+    const data = {
+      resource_id: resource.id,
+      annotation_type: 'text',
+      annotation_sub_type: annotationSubType,
+      label: selectedLabel || annotationData.label || null,
+      span_start: showSpanFields ? selectedText.start : null,
+      span_end: showSpanFields ? selectedText.end : null,
+      annotation_data: showSpanFields && selectedLabel ? buildAnnotationData(selectedLabel) : annotationData
+    };
+
+    onSave(data, false);
+    // Reset form for next annotation
+    if (showSpanFields) {
+      setSelectedText({ text: '', start: null, end: null });
+    } else {
+      setSelectedLabel('');
+      setAnnotationData({});
+    }
   };
 
   // Update annotation_data field
@@ -304,33 +325,18 @@ const TextAnnotationEditor = ({
         );
 
       case 'classification':
+        const classificationType = projectConfig?.classificationType || 'multi_class';
         return (
           <div className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Classification Type</label>
-              <select
-                value={annotationData.classification_type || 'multi_class'}
-                onChange={(e) => updateAnnotationData('classification_type', e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              >
-                <option value="binary">Binary</option>
-                <option value="multi_class">Multi-Class</option>
-                <option value="multi_label">Multi-Label</option>
-              </select>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Classes (JSON)</label>
-              <textarea
-                value={JSON.stringify(annotationData.classes || [], null, 2)}
-                onChange={(e) => {
-                  try {
-                    updateAnnotationData('classes', JSON.parse(e.target.value));
-                  } catch (err) {}
-                }}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono text-sm"
-                rows={3}
-                placeholder='[{"label": "SPAM", "confidence": 0.9}]'
-              />
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Classification Type: <span className="font-semibold text-blue-600">{classificationType.replace('_', '-')}</span>
+              </label>
+              <p className="text-xs text-gray-500">
+                {classificationType === 'binary' && 'Binary classification: Select one of two mutually exclusive classes'}
+                {classificationType === 'multi_class' && 'Multi-class classification: Select one of three or more mutually exclusive classes'}
+                {classificationType === 'multi_label' && 'Multi-label classification: Select multiple classes simultaneously'}
+              </p>
             </div>
           </div>
         );
@@ -345,7 +351,7 @@ const TextAnnotationEditor = ({
                 value={annotationData.head_token || ''}
                 onChange={(e) => updateAnnotationData('head_token', e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="e.g., 'said'"
+                placeholder="e.g. 'said'"
               />
             </div>
             <div>
@@ -381,7 +387,7 @@ const TextAnnotationEditor = ({
                 value={annotationData.chain_id || ''}
                 onChange={(e) => updateAnnotationData('chain_id', e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="e.g., CHAIN_1"
+                placeholder="e.g. CHAIN_1"
               />
             </div>
             <div>
@@ -485,9 +491,25 @@ const TextAnnotationEditor = ({
               <X size={16} className="mr-2" />
               Cancel
             </button>
+            {showSpanFields && !annotation ? (
+              // Show "Done" button for span-based annotations (continuous workflow)
+              <button
+                type="button"
+                onClick={(e) => handleManualSave(e, true)}
+                disabled={loading || (!showSpanFields && !selectedLabel)}
+                className={`px-4 py-2 rounded-md text-white transition-colors flex items-center ${
+                  loading || (!showSpanFields && !selectedLabel)
+                    ? 'bg-gray-400 cursor-not-allowed'
+                    : 'bg-green-600 hover:bg-green-700'
+                }`}
+              >
+                <Save size={16} className="mr-2" />
+                {loading ? 'Saving...' : 'Done'}
+              </button>
+            ) : null}
             <button
               type="button"
-              onClick={handleManualSave}
+              onClick={handleSaveAndContinue}
               disabled={loading || (!showSpanFields && !selectedLabel)}
               className={`px-4 py-2 rounded-md text-white transition-colors flex items-center ${
                 loading || (!showSpanFields && !selectedLabel)
@@ -496,7 +518,7 @@ const TextAnnotationEditor = ({
               }`}
             >
               <Save size={16} className="mr-2" />
-              {loading ? 'Saving...' : annotation ? 'Update' : 'Save'}
+              {loading ? 'Saving...' : (showSpanFields && !annotation ? 'Save & Continue' : (annotation ? 'Update' : 'Save'))}
             </button>
           </div>
         </div>
@@ -506,15 +528,24 @@ const TextAnnotationEditor = ({
       <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-md">
         <h4 className="font-medium text-blue-900 mb-2">Instructions</h4>
         <ul className="text-sm text-blue-800 space-y-1">
-          <li>• Select text in the content area to create an annotation</li>
-          <li>• Click a label from the palette to apply it</li>
+          <li>• Select text in content area to create an annotation</li>
+          <li>• Click a label from palette to apply it</li>
           {showSpanFields && (
-            <li>• For span-based types, annotation is created automatically when both text and label are selected</li>
+            <li>• For span-based types: Adjust confidence or other fields, then click "Save & Continue" to save</li>
           )}
           {!showSpanFields && (
-            <li>• For non-span types, fill in the form fields and click Save</li>
+            <li>• For non-span types: Fill in form fields and click Save</li>
           )}
           <li>• Press Escape to clear text selection</li>
+          {showSpanFields && !annotation && (
+            <>
+              <li>• For span-based types: Click "Save & Continue" to save and continue annotating</li>
+              <li>• Click "Done" when you've finished all annotations</li>
+            </>
+          )}
+          {!showSpanFields && (
+            <li>• For non-span types: Click "Save" to finish and close editor</li>
+          )}
         </ul>
       </div>
     </div>

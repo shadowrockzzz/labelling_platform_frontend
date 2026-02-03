@@ -345,6 +345,26 @@ export const ProjectForm = ({ project, onSubmit, onCancel, isSubmitting }) => {
                 )}
               </div>
 
+              {/* Classification Type */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Classification Type
+                </label>
+                <select
+                  value={formData.config.classificationType || 'multi_class'}
+                  onChange={(e) => handleConfigChange('classificationType', e.target.value)}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                  disabled={isSubmitting}
+                >
+                  <option value="binary">Binary (2 classes, mutually exclusive)</option>
+                  <option value="multi_class">Multi-Class (3+ classes, mutually exclusive)</option>
+                  <option value="multi_label">Multi-Label (3+ classes, can select multiple)</option>
+                </select>
+                <p className="mt-1 text-xs text-gray-500">
+                  Determines how labels are selected during annotation
+                </p>
+              </div>
+
               {/* Label Configuration - Always visible for text annotation */}
               <div className="border border-gray-200 rounded-lg p-4 bg-gray-50">
                 <h4 className="text-sm font-medium text-gray-900 mb-4">

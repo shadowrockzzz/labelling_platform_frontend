@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { ANNOTATION_SUB_TYPES, getSubTypeConfig } from '../constants';
 
 /**
@@ -7,11 +7,17 @@ import { ANNOTATION_SUB_TYPES, getSubTypeConfig } from '../constants';
  * or falls back to system defaults.
  * 
  * @param {string} annotationType - The annotation sub-type (e.g., 'ner', 'pos')
- * @param {object} projectConfig - Project configuration containing custom labels
+ * @param {object} projectConfig - Project configuration containing custom labels and classification type
  * @param {function} onLabelSelect - Callback when a label is selected
  * @param {string} selectedLabel - Currently selected label
  */
 const LabelPalette = ({ annotationType, projectConfig, onLabelSelect, selectedLabel }) => {
+  // Get classification type from project config (defaults to multi_class)
+  const classificationType = projectConfig?.classificationType || 'multi_class';
+  
+  // Track selected labels for multi-label classification
+  const [selectedLabels, setSelectedLabels] = useState([]);
+  
   // Check if project has custom labels configured
   const hasCustomLabels = projectConfig?.useCustomLabels && projectConfig?.customLabels?.length > 0;
   
@@ -33,7 +39,28 @@ const LabelPalette = ({ annotationType, projectConfig, onLabelSelect, selectedLa
   }
 
   const handleLabelClick = (label) => {
-    onLabelSelect(label);
+    if (classificationType === 'multi_label') {
+      // Multi-label: toggle label selection
+      setSelectedLabels(prev => {
+        const newSelected = prev.includes(label)
+          ? prev.filter(l => l !== label)
+          : [...prev, label];
+        
+        // Call parent with array of selected labels
+        onLabelSelect(newSelected);
+        return newSelected;
+      });
+    } else {
+      // Binary or Multi-class: single label selection
+      onLabelSelect(label);
+    }
+  };
+
+  const isLabelSelected = (label) => {
+    if (classificationType === 'multi_label') {
+      return selectedLabels.includes(label);
+    }
+    return selectedLabel === label;
   };
 
   const config = getSubTypeConfig(annotationType) || ANNOTATION_SUB_TYPES.NER;
@@ -49,10 +76,10 @@ const LabelPalette = ({ annotationType, projectConfig, onLabelSelect, selectedLa
         )}
       </h3>
       
-      {selectedLabel && (
+      {(classificationType === 'multi_label' ? selectedLabels.length > 0 : selectedLabel) && (
         <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-md">
           <p className="text-sm text-blue-900">
-            <strong>Selected:</strong> {selectedLabel}
+            <strong>Selected:</strong> {classificationType === 'multi_label' ? selectedLabels.join(', ') : selectedLabel}
           </p>
         </div>
       )}
@@ -60,7 +87,7 @@ const LabelPalette = ({ annotationType, projectConfig, onLabelSelect, selectedLa
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
         {labels.map(label => {
           const colorValue = labelColors[label] || '#6B7280'; // gray-500
-          const isSelected = selectedLabel === label;
+          const isSelected = isLabelSelected(label);
           
           return (
             <button
@@ -100,7 +127,7 @@ const LabelPalette = ({ annotationType, projectConfig, onLabelSelect, selectedLa
 
 // Helper function to determine text color based on background
 function getContrastColor(hexcolor) {
-  // Remove the hash if it's there
+  // Remove hash if it's there
   hexcolor = hexcolor.replace('#', '');
   
   // Parse the hex values

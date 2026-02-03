@@ -196,6 +196,39 @@ positive, negative, neutral, sports, politics, technology, health, entertainment
 └──────────┘ └──────────┘
 ```
 
+### Creating Text Annotations
+
+1. Navigate to a project with text annotation enabled
+2. Select a resource from the resource list
+3. Click "Create New Annotation"
+4. In the annotation editor:
+   - **Span-based annotations (NER, POS, Sentiment, etc.):**
+     - Select text from the content area by highlighting with your mouse
+     - Click a label from the label palette to assign it
+     - Annotation is created automatically
+     - **Continue selecting and labeling more text** without closing the editor
+     - Click **"Done"** when you've finished all annotations
+   - **Non-span annotations (Classification, General, etc.):**
+     - Fill in the form fields
+     - Click **"Save"** to create and close the annotation editor
+5. Fill in any additional fields based on annotation sub-type
+6. The annotations will appear in the annotation list below the editor
+
+**Continuous Annotation Workflow:**
+
+For span-based annotation types (NER, POS, Sentiment, etc.), the editor stays open after each save, allowing you to annotate multiple items in a single session:
+
+- **Select word 1** → Click label → **Annotation saved, editor stays open**
+- **Select word 2** → Click label → **Annotation saved, editor stays open**
+- **Continue** until done → Click **"Done"** → **Editor closes**
+
+This workflow makes annotation much faster and more efficient for resources requiring multiple labels.
+
+**Keyboard Shortcuts:**
+- Press `Escape` to clear text selection
+- The **"Save"** button saves the current annotation and keeps the editor open
+- The **"Done"** button saves the current annotation and closes the editor (span-based types only)
+
 ### Frontend Components
 
 #### TextAnnotationEditor
@@ -204,6 +237,8 @@ positive, negative, neutral, sports, politics, technology, health, entertainment
 - Predefined label buttons for sentiment
 - Span fields for NER only
 - JSON validation for additional data
+- **Continuous annotation support** for span-based types (editor stays open after save)
+- **"Done" button** to finish annotation session (span-based types only)
 
 #### AnnotationList
 - Display list of annotations
@@ -820,6 +855,279 @@ Based on the annotation sub-types supported:
 - **Relation Extraction** - Can have multiple relations between entities
 - **Coreference Resolution** - Can assign multiple mentions to same entity
 - **Custom multi-label projects** - User can configure as multi-label
+
+---
+
+## Classification Type Configuration Feature
+
+### Overview
+
+As of February 3, 2026, the classification type can now be configured at the **project level** rather than being manually specified for each annotation. This ensures consistency across all annotations within a project and simplifies the annotation workflow.
+
+### Key Benefits
+
+✅ **Project-Wide Consistency**: All annotations use the same classification type
+✅ **Automatic Detection**: LabelPalette automatically adapts behavior based on project config
+✅ **Reduced Configuration**: No need to specify classification type per annotation
+✅ **Flexible Setup**: Easy to change classification type by editing project
+✅ **Clear UI**: Annotators see classification type displayed in editor
+
+### Implementation
+
+#### 1. Project Configuration
+
+**Location**: Project creation/edit form
+
+**Field**: Classification Type dropdown under "Text Annotation Settings"
+
+**Options**:
+- **Binary**: 2 classes, mutually exclusive selection
+- **Multi-Class**: 3+ classes, mutually exclusive selection (default)
+- **Multi-Label**: 3+ classes, can select multiple labels simultaneously
+
+**Storage**: Stored in project config JSON as `classificationType`
+
+```json
+{
+  "annotation_type": "text",
+  "config": {
+    "textSubType": "classification",
+    "classificationType": "multi_label",
+    "customLabels": [...]
+  }
+}
+```
+
+#### 2. Backend Validation
+
+**Schema**: `ProjectCreate` and `ProjectUpdate` in `app/schemas/project.py`
+
+**Validation Rules**:
+- Only accepts: `binary`, `multi_class`, or `multi_label`
+- Case-sensitive validation
+- Returns clear error message for invalid values
+
+```python
+@validator('config')
+def validate_config(cls, v):
+    if not v:
+        return v
+        
+    # Validate classification type if present
+    if 'classificationType' in v:
+        valid_types = ['binary', 'multi_class', 'multi_label']
+        if v['classificationType'] not in valid_types:
+            raise ValueError(f'classificationType must be one of: {", ".join(valid_types)}')
+    
+    return v
+```
+
+#### 3. Frontend Components
+
+**LabelPalette Component** (`src/features/text-annotation/components/LabelPalette.jsx`):
+
+```jsx
+// Get classification type from project config (defaults to multi_class)
+const classificationType = projectConfig?.classificationType || 'multi_class';
+
+// Handle label selection based on classification type
+const handleLabelClick = (label) => {
+  if (classificationType === 'multi_label') {
+    // Multi-label: toggle label selection
+    setSelectedLabels(prev => {
+      const newSelected = prev.includes(label)
+        ? prev.filter(l => l !== label)
+        : [...prev, label];
+      onLabelSelect(newSelected);
+      return newSelected;
+    });
+  } else {
+    // Binary or Multi-class: single label selection
+    onLabelSelect(label);
+  }
+};
+```
+
+**TextAnnotationEditor Component** (`src/components/text-annotation/TextAnnotationEditor.jsx`):
+
+```jsx
+// Display classification type configuration
+case 'classification':
+  const classificationType = projectConfig?.classificationType || 'multi_class';
+  return (
+    <div className="space-y-4">
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-2">
+          Classification Type: <span className="font-semibold text-blue-600">{classificationType.replace('_', '-')}</span>
+        </label>
+        <p className="text-xs text-gray-500">
+          {classificationType === 'binary' && 'Binary classification: Select one of two mutually exclusive classes'}
+          {classificationType === 'multi_class' && 'Multi-class classification: Select one of three or more mutually exclusive classes'}
+          {classificationType === 'multi_label' && 'Multi-label classification: Select multiple classes simultaneously'}
+        </p>
+      </div>
+    </div>
+  );
+```
+
+### User Experience
+
+#### Creating a New Project
+
+1. **Create Project**: Fill in project details
+2. **Select Annotation Type**: Choose "Text Annotation"
+3. **Select Sub-Type**: Choose annotation sub-type (e.g., Classification)
+4. **Select Classification Type**:
+   - Default: Multi-Class
+   - Options: Binary, Multi-Class, Multi-Label
+5. **Configure Labels**: Set up custom labels if needed
+6. **Save**: Classification type saved to project config
+
+#### Annotating with Different Classification Types
+
+**Binary Classification:**
+- UI shows 2 labels (e.g., "Spam" and "Not Spam")
+- User clicks ONE label to select it
+- Selection automatically deselects the other label
+- Clear "this or that" choice
+
+**Multi-Class Classification:**
+- UI shows 3+ labels in a grid
+- User clicks ONE label to select it
+- Selection automatically deselects other labels
+- Visual feedback shows exactly one active label
+
+**Multi-Label Classification:**
+- UI shows 3+ labels in a grid
+- User can click ZERO, ONE, or MULTIPLE labels
+- Each label toggles independently
+- Visual feedback shows all selected labels
+- Selected labels display in "Selected:" section
+
+#### Changing Classification Type
+
+1. **Edit Project**: Click "Edit" on project card
+2. **Change Classification Type**: Select different type from dropdown
+3. **Save Changes**: Update project configuration
+4. **Impact**:
+   - New annotations use new classification type
+   - Existing annotations remain with original type
+   - LabelPalette adapts immediately for annotators
+
+### Backend API
+
+**Project Creation/Update:**
+```http
+POST /api/v1/projects
+Content-Type: application/json
+
+{
+  "name": "Spam Detection Project",
+  "annotation_type": "text",
+  "config": {
+    "textSubType": "classification",
+    "classificationType": "binary"
+  }
+}
+```
+
+**Validation Error Response:**
+```json
+{
+  "detail": [
+    {
+      "loc": ["body", "config"],
+      "msg": "classificationType must be one of: binary, multi_class, multi_label",
+      "type": "value_error"
+    }
+  ]
+}
+```
+
+**Project Response (includes classification type):**
+```json
+{
+  "success": true,
+  "data": {
+    "id": 1,
+    "name": "Spam Detection Project",
+    "annotation_type": "text",
+    "config": {
+      "textSubType": "classification",
+      "classificationType": "binary",
+      "customLabels": [...]
+    },
+    "created_at": "2026-02-03T00:00:00Z"
+  }
+}
+```
+
+### Best Practices
+
+#### For Project Managers
+
+1. **Choose Classification Type Early**: Decide during project creation to avoid rework
+2. **Align with Use Case**: Match classification type to annotation requirements
+3. **Test with Sample Data**: Verify classification type works as expected
+4. **Communicate to Team**: Ensure annotators understand the classification type
+5. **Update Carefully**: Changing classification type affects new annotations only
+
+#### For Annotators
+
+1. **Check Classification Type**: Review displayed type before annotating
+2. **Follow UI Pattern**: Use single or multi-select as appropriate
+3. **Read Descriptions**: Refer to type-specific instructions
+4. **Ask Questions**: If unclear about classification type usage
+
+### Migration Notes
+
+**Existing Projects**:
+- Projects created before this feature default to `multi_class`
+- Can be updated to use specific classification type
+- No migration script needed (defaults work for most cases)
+
+**Existing Annotations**:
+- Annotations created before this feature work as before
+- Classification type inferred from annotation data if available
+- No data loss or corruption
+
+### Troubleshooting
+
+**Issue**: "Classification type not recognized"
+```
+Solution: Check backend logs for validation errors
+        Ensure classification type value is exactly: binary, multi_class, or multi_label
+        Verify project config was saved correctly
+```
+
+**Issue**: "Multi-select not working"
+```
+Solution: Check project classification type is set to 'multi_label'
+        Reload page to get updated project config
+        Clear browser cache if needed
+```
+
+**Issue**: "Labels not mutually exclusive"
+```
+Solution: Check project classification type is set to 'binary' or 'multi_class'
+        Verify LabelPalette component updated
+        Check browser console for JavaScript errors
+```
+
+### Documentation Updates
+
+**Updated Files**:
+- `labelling_platform_backend/app/schemas/project.py` - Added classification type validation
+- `labelling_platform_frontend/src/components/projects/ProjectForm.jsx` - Added classification type selector
+- `labelling_platform_frontend/src/features/text-annotation/components/LabelPalette.jsx` - Auto-detect classification type
+- `labelling_platform_frontend/src/components/text-annotation/TextAnnotationEditor.jsx` - Display classification type
+- `labelling_platform_frontend/docs/README.md` - Added feature documentation
+- `labelling_platform_frontend/docs/FEATURE_GUIDE.md` - This section
+
+**Related Documentation**:
+- **Classification Types Section** (above) - Detailed explanation of binary/multi-class/multi-label
+- **Project Management** - Project creation and configuration
+- **Annotation Sub-Types** - Sub-type specific implementation
 
 ### When to Use Each Type
 

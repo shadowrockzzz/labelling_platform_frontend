@@ -79,15 +79,19 @@ const TextAnnotationWorkspace = ({ projectId, userRole, project }) => {
     setShowEditor(true);
   };
 
-  const handleSaveAnnotation = async (data) => {
+  const handleSaveAnnotation = async (data, closeEditor = false) => {
     try {
       if (editingAnnotation) {
         await updateAnnotation(editingAnnotation.id, data);
       } else {
         await createAnnotation(data);
       }
-      setShowEditor(false);
-      setEditingAnnotation(null);
+      
+      if (closeEditor) {
+        setShowEditor(false);
+        setEditingAnnotation(null);
+      }
+      // If closeEditor is false, editor stays open for continuous annotation
     } catch (error) {
       alert('Failed to save annotation: ' + (error.response?.data?.error || error.message));
     }
