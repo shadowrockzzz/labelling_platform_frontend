@@ -1,4 +1,4 @@
-# LabelBox Clone Frontend
+# LabelBox Frontend
 
 A modern React-based frontend for an annotation platform with role-based authentication and team management.
 
