@@ -83,8 +83,17 @@ const TextAnnotationWorkspace = ({ projectId, userRole, project }) => {
     try {
       if (editingAnnotation) {
         await updateAnnotation(editingAnnotation.id, data);
-      } else {
+      } else if (data) {
+        // Old model: creating annotation with data
         await createAnnotation(data);
+      } else {
+        // New model: span was already saved via addSpan endpoint
+        // Just need to refresh the annotations list
+      }
+      
+      // Refresh annotations to show newly added spans
+      if (selectedResource) {
+        fetchAnnotations(1, { resource_id: selectedResource.id });
       }
       
       if (closeEditor) {
@@ -218,6 +227,7 @@ const TextAnnotationWorkspace = ({ projectId, userRole, project }) => {
                 }}
                 loading={annotationsLoading}
                 projectConfig={project?.config || {}}
+                projectId={projectId}
               />
             ) : (
               <>

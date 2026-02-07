@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { Save, X, Plus } from 'lucide-react';
+import { Save, X, Plus, Trash2 } from 'lucide-react';
 import HighlightableTextArea from '../../features/text-annotation/components/HighlightableTextArea';
 import LabelPalette from '../../features/text-annotation/components/LabelPalette';
 import { ANNOTATION_SUB_TYPES, getSubTypeConfig } from '../../features/text-annotation/constants';
+import { textAnnotationService } from '../../services/textAnnotationService';
 
 const TextAnnotationEditor = ({ 
   resource, 
@@ -12,11 +13,15 @@ const TextAnnotationEditor = ({
   onSave, 
   onCancel,
   loading,
-  projectConfig = {}
+  projectConfig = {},
+  projectId
 }) => {
   const [selectedText, setSelectedText] = useState({ text: '', start: null, end: null });
   const [selectedLabel, setSelectedLabel] = useState('');
   const [annotationData, setAnnotationData] = useState({});
+  const [pendingSpans, setPendingSpans] = useState([]); // Local accumulation for batch submission
+  const [submitError, setSubmitError] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false); // Prevent duplicate submissions
 
   const subTypeConfig = getSubTypeConfig(annotationSubType);
   const showSpanFields = subTypeConfig.fields.includes('span_start') && subTypeConfig.fields.includes('span_end');
@@ -131,44 +136,155 @@ const TextAnnotationEditor = ({
     return textBefore.split(/\s+/).length - 1;
   };
 
-  // Handle manual save (for non-span types or manual edits)
-  const handleManualSave = (e, closeEditor = false) => {
+  // Handle manual save (for non-span types or done button)
+  const handleManualSave = async (e, closeEditor = false) => {
     e.preventDefault();
+    e.stopPropagation(); // Prevent event bubbling
     
-    const data = {
-      resource_id: resource.id,
-      annotation_type: 'text',
-      annotation_sub_type: annotationSubType,
-      label: selectedLabel || annotationData.label || null,
-      span_start: showSpanFields ? selectedText.start : null,
-      span_end: showSpanFields ? selectedText.end : null,
-      annotation_data: showSpanFields && selectedLabel ? buildAnnotationData(selectedLabel) : annotationData
-    };
+    // Prevent duplicate submissions
+    if (isSubmitting) {
+      console.log('Submission already in progress, ignoring...');
+      return;
+    }
+    
+    
+    if (!showSpanFields) {
+      // For non-span types, use old annotation model for now
+      const data = {
+        resource_id: resource.id,
+        annotation_type: 'text',
+        annotation_sub_type: annotationSubType,
+        label: selectedLabel || annotationData.label || null,
+        span_start: null,
+        span_end: null,
+        annotation_data: annotationData
+      };
+      onSave(data, closeEditor);
+      return;
+    }
 
-    onSave(data, closeEditor);
+    // For span types with "Done" button, submit batch
+    await handleBatchSubmit(e, closeEditor);
   };
 
-  // Handle save and continue annotation
+  // Clean span data by removing null/undefined/empty values
+  const cleanSpanData = (spanData) => {
+    return Object.fromEntries(
+      Object.entries(spanData).filter(([_, value]) => {
+        // Keep the value if it's not null, undefined, or empty string
+        if (value === null || value === undefined || value === '') {
+          return false;
+        }
+        // Keep 0 values (they're valid)
+        if (value === 0) {
+          return true;
+        }
+        // Keep arrays and objects that are not empty
+        if (Array.isArray(value) || typeof value === 'object') {
+          return true;
+        }
+        // Keep truthy values
+        return true;
+      })
+    );
+  };
+
+  // Handle save and continue annotation (BATCH: accumulates locally, no API call)
   const handleSaveAndContinue = (e) => {
     e.preventDefault();
+    e.stopPropagation(); // Prevent event bubbling
     
-    const data = {
-      resource_id: resource.id,
-      annotation_type: 'text',
-      annotation_sub_type: annotationSubType,
-      label: selectedLabel || annotationData.label || null,
-      span_start: showSpanFields ? selectedText.start : null,
-      span_end: showSpanFields ? selectedText.end : null,
-      annotation_data: showSpanFields && selectedLabel ? buildAnnotationData(selectedLabel) : annotationData
-    };
+    if (!showSpanFields || !selectedLabel) {
+      console.error('Cannot save: no span selected or no label chosen');
+      return;
+    }
 
-    onSave(data, false);
-    // Reset form for next annotation
-    if (showSpanFields) {
+    try {
+      // Build span object with unique ID
+      const spanData = {
+        id: `span_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+        text: selectedText.text,
+        label: selectedLabel,
+        start: selectedText.start,
+        end: selectedText.end,
+        ...buildAnnotationData(selectedLabel)
+      };
+
+      // Clean up span data - remove null/undefined/empty values
+      const cleanedSpanData = cleanSpanData(spanData);
+
+      // Add to local state (NO API CALL)
+      setPendingSpans(prev => [...prev, cleanedSpanData]);
+
+      // Reset form for next annotation
       setSelectedText({ text: '', start: null, end: null });
-    } else {
       setSelectedLabel('');
       setAnnotationData({});
+      setSubmitError('');
+
+    } catch (error) {
+      console.error('Failed to build span:', error);
+    }
+  };
+
+  // Remove a pending span from local state
+  const removePendingSpan = (spanId) => {
+    setPendingSpans(prev => prev.filter(span => span.id !== spanId));
+  };
+
+  // Handle batch submission (Done button)
+  const handleBatchSubmit = async (e, closeEditor = true) => {
+    e.preventDefault();
+    e.stopPropagation(); // Prevent event bubbling
+    
+    // Prevent duplicate submissions
+    if (isSubmitting) {
+      console.log('Submission already in progress, ignoring...');
+      return;
+    }
+    
+    if (pendingSpans.length === 0) {
+      setSubmitError('No spans to submit. Please add at least one annotation.');
+      return;
+    }
+
+    setIsSubmitting(true);
+    
+    try {
+      // Submit all spans in one batch request
+      const batchData = {
+        resource_id: resource.id,
+        annotation_type: 'text',
+        annotation_sub_type: annotationSubType,
+        spans: pendingSpans
+      };
+
+      const result = await textAnnotationService.createAnnotation(
+        projectId,
+        batchData
+      );
+
+      // Clear pending spans on success
+      setPendingSpans([]);
+      setSubmitError('');
+
+      // Call onSave to refresh annotations in parent
+      // Pass the result from API call instead of batchData to prevent resubmission
+      if (onSave) {
+        onSave(null, closeEditor); // Pass null to indicate no resubmission needed
+      }
+
+    } catch (error) {
+      console.error('Failed to submit batch:', error);
+      // Keep pending spans for retry
+      setSubmitError(
+        error.response?.data?.detail || 
+        error.response?.data?.error || 
+        error.message || 
+        'Failed to submit annotations. Please try again.'
+      );
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -180,6 +296,23 @@ const TextAnnotationEditor = ({
     }));
   };
 
+  // Helper function to get button text based on state
+  const getSaveButtonText = () => {
+    if (isSubmitting) return 'Saving...';
+    if (loading) return 'Loading...';
+    
+    if (showSpanFields && !annotation) return 'Save & Continue';
+    if (annotation) return 'Update';
+    return 'Save';
+  };
+
+  // Helper function to get Done button text
+  const getDoneButtonText = () => {
+    if (isSubmitting) return 'Submitting...';
+    if (loading) return 'Loading...';
+    return `Done (${pendingSpans.length})`;
+  };
+
   // Render type-specific form fields
   const renderTypeSpecificFields = () => {
     switch (annotationSubType) {
@@ -187,14 +320,20 @@ const TextAnnotationEditor = ({
         return (
           <div className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Confidence Score</label>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Confidence Score (0.0 - 1.0)</label>
               <input
                 type="number"
                 step="0.01"
                 min="0"
                 max="1"
                 value={annotationData.confidence || ''}
-                onChange={(e) => updateAnnotationData('confidence', parseFloat(e.target.value))}
+                onChange={(e) => {
+                  const val = parseFloat(e.target.value);
+                  // Only update if within valid range or empty
+                  if (isNaN(val) || (val >= 0 && val <= 1)) {
+                    updateAnnotationData('confidence', isNaN(val) ? null : val);
+                  }
+                }}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 placeholder="0.0 - 1.0"
               />
@@ -481,8 +620,57 @@ const TextAnnotationEditor = ({
             </div>
           </div>
 
+          {/* Pending Spans List (for span-based annotations) */}
+          {showSpanFields && !annotation && pendingSpans.length > 0 && (
+            <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+              <h4 className="font-semibold text-blue-900 mb-3 flex items-center">
+                <span>Pending Spans ({pendingSpans.length})</span>
+                <span className="ml-2 text-sm font-normal text-blue-700">
+                  - Ready to submit
+                </span>
+              </h4>
+              <div className="space-y-2 max-h-60 overflow-y-auto">
+                {pendingSpans.map((span) => (
+                  <div 
+                    key={span.id} 
+                    className="flex items-center justify-between bg-white p-2 rounded-md border border-blue-100"
+                  >
+                    <div className="flex-1">
+                      <span className="inline-block px-2 py-1 rounded text-xs font-medium bg-blue-100 text-blue-800 mr-2">
+                        {span.label}
+                      </span>
+                      <span className="text-sm text-gray-700 font-mono">
+                        [{span.start}:{span.end}]
+                      </span>
+                      <span className="text-sm text-gray-600 ml-2">
+                        "{span.text}"
+                      </span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => removePendingSpan(span.id)}
+                      className="p-1 text-red-500 hover:bg-red-50 rounded transition-colors"
+                      title="Remove span"
+                    >
+                      <Trash2 size={14} />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Submit Error Message */}
+          {submitError && (
+            <div className="mt-4 p-4 bg-red-50 border border-red-200 rounded-lg">
+              <p className="text-sm text-red-900 font-medium">
+                {submitError}
+              </p>
+            </div>
+          )}
+
           {/* Action Buttons */}
-          <div className="flex justify-end space-x-3">
+          <div className="flex justify-end space-x-3 mt-6">
             <button
               type="button"
               onClick={onCancel}
@@ -492,33 +680,33 @@ const TextAnnotationEditor = ({
               Cancel
             </button>
             {showSpanFields && !annotation ? (
-              // Show "Done" button for span-based annotations (continuous workflow)
+              // Show "Done" button for span-based annotations (batch submission)
               <button
                 type="button"
                 onClick={(e) => handleManualSave(e, true)}
-                disabled={loading || (!showSpanFields && !selectedLabel)}
+                disabled={loading || isSubmitting || pendingSpans.length === 0}
                 className={`px-4 py-2 rounded-md text-white transition-colors flex items-center ${
-                  loading || (!showSpanFields && !selectedLabel)
+                  loading || isSubmitting || pendingSpans.length === 0
                     ? 'bg-gray-400 cursor-not-allowed'
                     : 'bg-green-600 hover:bg-green-700'
                 }`}
               >
                 <Save size={16} className="mr-2" />
-                {loading ? 'Saving...' : 'Done'}
+                {getDoneButtonText()}
               </button>
             ) : null}
             <button
               type="button"
               onClick={handleSaveAndContinue}
-              disabled={loading || (!showSpanFields && !selectedLabel)}
+              disabled={loading || isSubmitting || (!showSpanFields && !selectedLabel)}
               className={`px-4 py-2 rounded-md text-white transition-colors flex items-center ${
-                loading || (!showSpanFields && !selectedLabel)
+                loading || isSubmitting || (!showSpanFields && !selectedLabel)
                   ? 'bg-gray-400 cursor-not-allowed'
                   : 'bg-blue-500 hover:bg-blue-600'
-              }`}
+                }`}
             >
               <Save size={16} className="mr-2" />
-              {loading ? 'Saving...' : (showSpanFields && !annotation ? 'Save & Continue' : (annotation ? 'Update' : 'Save'))}
+              {getSaveButtonText()}
             </button>
           </div>
         </div>
@@ -531,17 +719,18 @@ const TextAnnotationEditor = ({
           <li>• Select text in content area to create an annotation</li>
           <li>• Click a label from palette to apply it</li>
           {showSpanFields && (
-            <li>• For span-based types: Adjust confidence or other fields, then click "Save & Continue" to save</li>
+            <>
+              <li>• For span-based types: Click "Save & Continue" to accumulate spans locally</li>
+              <li>• All accumulated spans will be submitted together when you click "Done"</li>
+              <li>• You can remove pending spans before submission by clicking the trash icon</li>
+            </>
           )}
           {!showSpanFields && (
             <li>• For non-span types: Fill in form fields and click Save</li>
           )}
           <li>• Press Escape to clear text selection</li>
           {showSpanFields && !annotation && (
-            <>
-              <li>• For span-based types: Click "Save & Continue" to save and continue annotating</li>
-              <li>• Click "Done" when you've finished all annotations</li>
-            </>
+            <li>• Click "Done" when you've finished all annotations to submit everything at once</li>
           )}
           {!showSpanFields && (
             <li>• For non-span types: Click "Save" to finish and close editor</li>

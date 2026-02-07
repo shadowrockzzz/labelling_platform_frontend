@@ -116,6 +116,12 @@ const AnnotationList = ({
   canReview,
   resourceContent
 }) => {
+  // Handle both old model (multiple annotations) and new model (one annotation with spans)
+  // NEW MODEL: annotations.spans contains the actual span data
+  // OLD MODEL: each annotation is a separate span
+  const isSingleAnnotationModel = annotations.length === 1 && annotations[0]?.spans && annotations[0].spans.length > 0;
+  const spansToDisplay = isSingleAnnotationModel ? annotations[0].spans : annotations;
+
   if (loading) {
     return (
       <div className="bg-white rounded-lg shadow-md p-6">
@@ -124,14 +130,14 @@ const AnnotationList = ({
     );
   }
 
-  if (annotations.length === 0) {
+  if (spansToDisplay.length === 0) {
     return (
       <div className="bg-white rounded-lg shadow-md p-6">
         <div className="text-center py-8">
           <FileText size={48} className="mx-auto text-gray-300 mb-4" />
           <p className="text-gray-500">No annotations yet</p>
           <p className="text-sm text-gray-400 mt-2">
-            Select text in the editor and choose a label to create your first annotation
+            Select text in editor and choose a label to create your first annotation
           </p>
         </div>
       </div>
@@ -150,7 +156,18 @@ const AnnotationList = ({
       </div>
       
       <div className="space-y-3">
-        {annotations.map((annotation) => {
+        {spansToDisplay.map((item, index) => {
+          // Handle both old model (annotation) and new model (span)
+          const isSpanModel = item.text !== undefined; // New model has 'text' field directly
+          const annotation = isSpanModel ? {
+            ...item,
+            annotation_sub_type: annotations[0]?.annotation_sub_type || 'ner',
+            id: item.id || `${annotations[0]?.id}_${item.span_id}`,
+            status: annotations[0]?.status || 'pending',
+            created_at: annotations[0]?.created_at,
+            label: item.label
+          } : item;
+          
           const subTypeConfig = getSubTypeConfig(annotation.annotation_sub_type);
           const formattedData = formatAnnotationData(annotation);
           const hasSpan = annotation.span_start !== null && annotation.span_end !== null;

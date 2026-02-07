@@ -8,6 +8,12 @@ const HighlightableTextArea = ({
   annotationType,
   readOnly = false 
 }) => {
+  // Handle both old model (multiple annotations) and new model (one annotation with spans)
+  // NEW MODEL: annotations[0].spans contains actual span data
+  // OLD MODEL: each annotation is a separate span
+  const isSingleAnnotationModel = annotations.length === 1 && annotations[0]?.spans && annotations[0].spans.length > 0;
+  const spansToRender = isSingleAnnotationModel ? annotations[0].spans : annotations;
+  const annotationSubType = isSingleAnnotationModel ? annotations[0]?.annotation_sub_type : annotationType;
   const [selectedRange, setSelectedRange] = useState({ start: null, end: null, text: '' });
   const [hoveredAnnotation, setHoveredAnnotation] = useState(null);
   const [tooltipPosition, setTooltipPosition] = useState({ x: 0, y: 0 });
@@ -61,41 +67,45 @@ const HighlightableTextArea = ({
     if (!content) return null;
 
     // Sort annotations by start position
-    const sortedAnnotations = [...annotations].sort((a, b) => a.span_start - b.span_start);
+    const sortedAnnotations = [...spansToRender].sort((a, b) => a.start - a.start);
     
     let lastIndex = 0;
     const elements = [];
 
     // Render text segments with highlights
     for (const annotation of sortedAnnotations) {
+      // Use start/end fields (new model) or span_start/span_end (old model)
+      const start = annotation.start !== undefined ? annotation.start : annotation.span_start;
+      const end = annotation.end !== undefined ? annotation.end : annotation.span_end;
+      
       // Add text before annotation
-      if (annotation.span_start > lastIndex) {
+      if (start > lastIndex) {
         elements.push(
           <span key={`text-${lastIndex}`} className="text-gray-800">
-            {content.substring(lastIndex, annotation.span_start)}
+            {content.substring(lastIndex, start)}
           </span>
         );
       }
 
       // Get color based on annotation type and label
-      const config = getAnnotationColor(annotation.annotation_sub_type, annotation.label);
+      const config = getAnnotationColor(annotationSubType, annotation.label);
       
       // Add highlighted span
       elements.push(
         <mark
-          key={`annotation-${annotation.id}`}
-          data-annotation-id={annotation.id}
+          key={`annotation-${annotation.id || annotation.span_id}`}
+          data-annotation-id={annotation.id || annotation.span_id}
           className={`${config.bgClass} ${config.textClass} px-1 rounded cursor-pointer transition-opacity hover:opacity-80`}
           style={{ opacity: config.opacity || 1 }}
           onMouseEnter={(e) => handleAnnotationHover(annotation, e)}
           onMouseLeave={handleAnnotationLeave}
           onClick={(e) => handleAnnotationClick(annotation, e)}
         >
-          {content.substring(annotation.span_start, annotation.span_end)}
+          {content.substring(start, end)}
         </mark>
       );
 
-      lastIndex = annotation.span_end;
+      lastIndex = end;
     }
 
     // Add remaining text
