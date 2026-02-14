@@ -25,8 +25,22 @@ export const textAnnotationService = {
 
   // Update an annotation
   updateAnnotation: async (projectId, annotationId, data) => {
-    const response = await api.put(`${API_BASE}/projects/${projectId}/annotations/${annotationId}`, data);
-    return response.data;
+    try {
+      console.log('=== API Call: updateAnnotation ===');
+      console.log('URL:', `${API_BASE}/projects/${projectId}/annotations/${annotationId}`);
+      console.log('Payload:', JSON.stringify(data, null, 2));
+      
+      const response = await api.put(`${API_BASE}/projects/${projectId}/annotations/${annotationId}`, data);
+      console.log('Success:', response.data);
+      return response.data;
+    } catch (error) {
+      console.error('=== API Error ===');
+      console.error('Status:', error.response?.status);
+      console.error('Status Text:', error.response?.statusText);
+      console.error('Response Data:', error.response?.data);
+      console.error('Full Error:', error);
+      throw error;
+    }
   },
 
   // Submit an annotation for review

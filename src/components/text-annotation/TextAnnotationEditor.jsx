@@ -31,8 +31,16 @@ const TextAnnotationEditor = ({
     if (annotation) {
       setSelectedLabel(annotation.label || '');
       setAnnotationData(annotation.annotation_data || {});
+      
+      // For span-based annotations, populate pendingSpans with existing spans
+      if (showSpanFields && annotation.annotation_data?.spans) {
+        setPendingSpans(annotation.annotation_data.spans);
+      }
+    } else {
+      // Clear pending spans when not editing
+      setPendingSpans([]);
     }
-  }, [annotation]);
+  }, [annotation, showSpanFields]);
 
   // Handle text selection from HighlightableTextArea
   const handleTextSelect = (selection) => {
@@ -243,7 +251,7 @@ const TextAnnotationEditor = ({
       return;
     }
     
-    if (pendingSpans.length === 0) {
+    if (pendingSpans.length === 0 && !annotation) {
       setSubmitError('No spans to submit. Please add at least one annotation.');
       return;
     }
@@ -251,27 +259,48 @@ const TextAnnotationEditor = ({
     setIsSubmitting(true);
     
     try {
-      // Submit all spans in one batch request
-      const batchData = {
-        resource_id: resource.id,
-        annotation_type: 'text',
-        annotation_sub_type: annotationSubType,
-        spans: pendingSpans
-      };
+      if (annotation) {
+        // Editing existing annotation - update it
+        const updateData = {
+          annotation_data: {
+            spans: (pendingSpans && pendingSpans.length > 0) 
+              ? pendingSpans 
+              : (annotation.annotation_data?.spans || [])
+          }
+        };
+        
+        // Log payload for debugging
+        console.log('=== Saving Annotation ===');
+        console.log('Payload:', JSON.stringify(updateData, null, 2));
+        console.log('Pending spans:', pendingSpans);
+        console.log('Original annotation spans:', annotation.annotation_data?.spans);
+        console.log('Annotation ID:', annotation.id);
+        console.log('Project ID:', projectId);
+        
+        await textAnnotationService.updateAnnotation(projectId, annotation.id, updateData);
+      } else {
+        // Creating new annotation
+        const batchData = {
+          resource_id: resource.id,
+          annotation_type: 'text',
+          annotation_sub_type: annotationSubType,
+          spans: pendingSpans || []
+        };
 
-      const result = await textAnnotationService.createAnnotation(
-        projectId,
-        batchData
-      );
+        await textAnnotationService.createAnnotation(
+          projectId,
+          batchData
+        );
+      }
 
       // Clear pending spans on success
       setPendingSpans([]);
       setSubmitError('');
 
       // Call onSave to refresh annotations in parent
-      // Pass the result from API call instead of batchData to prevent resubmission
+      // Pass null to indicate no resubmission needed (batch already submitted)
       if (onSave) {
-        onSave(null, closeEditor); // Pass null to indicate no resubmission needed
+        onSave(null, closeEditor);
       }
 
     } catch (error) {
@@ -310,7 +339,7 @@ const TextAnnotationEditor = ({
   const getDoneButtonText = () => {
     if (isSubmitting) return 'Submitting...';
     if (loading) return 'Loading...';
-    return `Done (${pendingSpans.length})`;
+    return `Done (${pendingSpans ? pendingSpans.length : 0})`;
   };
 
   // Render type-specific form fields
@@ -594,7 +623,7 @@ const TextAnnotationEditor = ({
             annotations={annotations}
             onTextSelect={handleTextSelect}
             annotationType={annotationSubType}
-            readOnly={!!annotation}
+            readOnly={false}
           />
         </div>
 
@@ -620,13 +649,15 @@ const TextAnnotationEditor = ({
             </div>
           </div>
 
-          {/* Pending Spans List (for span-based annotations) */}
-          {showSpanFields && !annotation && pendingSpans.length > 0 && (
+          {/* Pending/Existing Spans List (for span-based annotations) */}
+          {showSpanFields && pendingSpans.length > 0 && (
             <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
               <h4 className="font-semibold text-blue-900 mb-3 flex items-center">
-                <span>Pending Spans ({pendingSpans.length})</span>
+                <span>
+                  {annotation ? `Existing Spans (${pendingSpans.length})` : `Pending Spans (${pendingSpans.length})`}
+                </span>
                 <span className="ml-2 text-sm font-normal text-blue-700">
-                  - Ready to submit
+                  {annotation ? '- Click Update to save changes' : '- Ready to submit'}
                 </span>
               </h4>
               <div className="space-y-2 max-h-60 overflow-y-auto">
@@ -679,64 +710,91 @@ const TextAnnotationEditor = ({
               <X size={16} className="mr-2" />
               Cancel
             </button>
-            {showSpanFields && !annotation ? (
-              // Show "Done" button for span-based annotations (batch submission)
+            {showSpanFields ? (
+              <>
+                {/* Show "Save & Continue" button for span-based annotations (both create and edit) */}
+                <button
+                  type="button"
+                  onClick={handleSaveAndContinue}
+                  disabled={loading || isSubmitting || !selectedLabel}
+                  className={`px-4 py-2 rounded-md text-white transition-colors flex items-center ${
+                    loading || isSubmitting || !selectedLabel
+                      ? 'bg-gray-400 cursor-not-allowed'
+                      : 'bg-blue-500 hover:bg-blue-600'
+                  }`}
+                >
+                  <Save size={16} className="mr-2" />
+                  Save & Continue
+                </button>
+                {/* Show "Done" button for span-based annotations (batch submission) - both create and edit */}
+                <button
+                  type="button"
+                  onClick={(e) => handleManualSave(e, true)}
+                  disabled={loading || isSubmitting || pendingSpans.length === 0}
+                  className={`px-4 py-2 rounded-md text-white transition-colors flex items-center ${
+                    loading || isSubmitting || pendingSpans.length === 0
+                      ? 'bg-gray-400 cursor-not-allowed'
+                      : 'bg-green-600 hover:bg-green-700'
+                  }`}
+                >
+                  <Save size={16} className="mr-2" />
+                  {getDoneButtonText()}
+                </button>
+              </>
+            ) : null}
+            {!showSpanFields && !annotation && (
               <button
                 type="button"
-                onClick={(e) => handleManualSave(e, true)}
-                disabled={loading || isSubmitting || pendingSpans.length === 0}
+                onClick={handleManualSave}
+                disabled={loading || isSubmitting || !selectedLabel}
                 className={`px-4 py-2 rounded-md text-white transition-colors flex items-center ${
-                  loading || isSubmitting || pendingSpans.length === 0
+                  loading || isSubmitting || !selectedLabel
                     ? 'bg-gray-400 cursor-not-allowed'
-                    : 'bg-green-600 hover:bg-green-700'
+                    : 'bg-blue-500 hover:bg-blue-600'
                 }`}
               >
                 <Save size={16} className="mr-2" />
-                {getDoneButtonText()}
+                Save
               </button>
-            ) : null}
-            <button
-              type="button"
-              onClick={handleSaveAndContinue}
-              disabled={loading || isSubmitting || (!showSpanFields && !selectedLabel)}
-              className={`px-4 py-2 rounded-md text-white transition-colors flex items-center ${
-                loading || isSubmitting || (!showSpanFields && !selectedLabel)
-                  ? 'bg-gray-400 cursor-not-allowed'
-                  : 'bg-blue-500 hover:bg-blue-600'
+            )}
+            {!showSpanFields && annotation && (
+              <button
+                type="button"
+                onClick={handleManualSave}
+                disabled={loading || isSubmitting}
+                className={`px-4 py-2 rounded-md text-white transition-colors flex items-center ${
+                  loading || isSubmitting
+                    ? 'bg-gray-400 cursor-not-allowed'
+                    : 'bg-blue-500 hover:bg-blue-600'
                 }`}
-            >
-              <Save size={16} className="mr-2" />
-              {getSaveButtonText()}
-            </button>
+              >
+                <Save size={16} className="mr-2" />
+                Update
+              </button>
+            )}
           </div>
         </div>
       </div>
 
-      {/* Instructions */}
-      <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-md">
-        <h4 className="font-medium text-blue-900 mb-2">Instructions</h4>
-        <ul className="text-sm text-blue-800 space-y-1">
-          <li>• Select text in content area to create an annotation</li>
-          <li>• Click a label from palette to apply it</li>
-          {showSpanFields && (
-            <>
-              <li>• For span-based types: Click "Save & Continue" to accumulate spans locally</li>
-              <li>• All accumulated spans will be submitted together when you click "Done"</li>
-              <li>• You can remove pending spans before submission by clicking the trash icon</li>
-            </>
-          )}
-          {!showSpanFields && (
-            <li>• For non-span types: Fill in form fields and click Save</li>
-          )}
-          <li>• Press Escape to clear text selection</li>
-          {showSpanFields && !annotation && (
-            <li>• Click "Done" when you've finished all annotations to submit everything at once</li>
-          )}
-          {!showSpanFields && (
-            <li>• For non-span types: Click "Save" to finish and close editor</li>
-          )}
-        </ul>
-      </div>
+          {/* Instructions */}
+          <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-md">
+            <h4 className="font-medium text-blue-900 mb-2">Instructions</h4>
+            <ul className="text-sm text-blue-800 space-y-1">
+              <li>• Select text in content area to create an annotation</li>
+              <li>• Click a label from palette to apply it</li>
+              {showSpanFields && (
+                <>
+                  <li>• Click "Save & Continue" to add new spans to the list</li>
+                  <li>• You can remove spans by clicking the trash icon</li>
+                  <li>• Click "Done" to save all spans (existing + new)</li>
+                </>
+              )}
+              {!showSpanFields && (
+                <li>• For non-span types: Fill in form fields and click Save/Update</li>
+              )}
+              <li>• Press Escape to clear text selection</li>
+            </ul>
+          </div>
     </div>
   );
 };

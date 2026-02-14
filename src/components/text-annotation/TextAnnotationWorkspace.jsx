@@ -74,8 +74,36 @@ const TextAnnotationWorkspace = ({ projectId, userRole, project }) => {
     setShowEditor(true);
   };
 
-  const handleEditAnnotation = (annotation) => {
+  const handleEditAnnotation = async (annotation) => {
     setEditingAnnotation(annotation);
+    
+    // If no resource is selected or different resource, load it
+    if (!selectedResource || selectedResource.id !== annotation.resource_id) {
+      try {
+        setLoadingResource(true);
+        const fullResource = await getResource(annotation.resource_id);
+        setSelectedResource(fullResource);
+        setResourceWithContent(fullResource);
+      } catch (error) {
+        alert('Failed to load annotation resource: ' + (error.response?.data?.error || error.message));
+        return; // Don't show editor if resource fails to load
+      } finally {
+        setLoadingResource(false);
+      }
+    } else if (!resourceWithContent || resourceWithContent.id !== annotation.resource_id) {
+      // Resource selected but content not loaded
+      try {
+        setLoadingResource(true);
+        const fullResource = await getResource(annotation.resource_id);
+        setResourceWithContent(fullResource);
+      } catch (error) {
+        alert('Failed to load resource content: ' + (error.response?.data?.error || error.message));
+        return;
+      } finally {
+        setLoadingResource(false);
+      }
+    }
+    
     setShowEditor(true);
   };
 

@@ -16,7 +16,11 @@
     "axios": "^1.6.0",
     "react-hook-form": "^7.48.0",
     "lucide-react": "^0.300.0",
-    "react-hot-toast": "^2.4.1"
+    "react-hot-toast": "^2.4.1",
+    "konva": "^9.3.0",
+    "react-konva": "^18.2.10",
+    "use-image": "^1.1.1",
+    "uuid": "^9.0.0"
   },
   "devDependencies": {
     "@types/react": "^18.2.43",

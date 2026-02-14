@@ -76,8 +76,7 @@ export const ProjectForm = ({ project, onSubmit, onCancel, isSubmitting }) => {
   const annotationTypes = [
     { value: '', label: 'None (General)' },
     { value: 'text', label: 'Text Annotation' },
-    { value: 'image_classification', label: 'Image Classification' },
-    { value: 'object_detection', label: 'Object Detection' },
+    { value: 'image', label: 'Image Annotation' },
     { value: 'video_annotation', label: 'Video Annotation' },
     { value: 'audio_annotation', label: 'Audio Annotation' },
     { value: 'custom', label: 'Custom' }
@@ -411,105 +410,64 @@ export const ProjectForm = ({ project, onSubmit, onCancel, isSubmitting }) => {
             </div>
           )}
 
-          {/* Image Classification Settings */}
-          {formData.annotation_type === 'image_classification' && (
+          {/* Image Annotation Settings */}
+          {formData.annotation_type === 'image' && (
             <div className={showAdvanced ? 'space-y-4' : 'space-y-4'}>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Number of Classes
+                  Annotation Tools
                 </label>
-                <input
-                  type="number"
-                  min="1"
-                  value={formData.config.numClasses || ''}
-                  onChange={(e) => handleConfigChange('numClasses', parseInt(e.target.value) || null)}
-                  placeholder="e.g., 10"
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-                  disabled={isSubmitting}
-                />
+                <div className="space-y-2">
+                  {['bounding_box', 'polygon', 'keypoint'].map(tool => (
+                    <label key={tool} className="flex items-center gap-2 text-sm font-medium text-gray-700">
+                      <input
+                        type="checkbox"
+                        checked={formData.config.enabledTools?.includes(tool) || false}
+                        onChange={(e) => {
+                          const tools = formData.config.enabledTools || [];
+                          if (e.target.checked) {
+                            handleConfigChange('enabledTools', [...tools, tool]);
+                          } else {
+                            handleConfigChange('enabledTools', tools.filter(t => t !== tool));
+                          }
+                        }}
+                        className="rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+                        disabled={isSubmitting}
+                      />
+                      {tool === 'bounding_box' ? 'Bounding Box' : 
+                       tool === 'polygon' ? 'Polygon' : 'Keypoint'}
+                    </label>
+                  ))}
+                </div>
               </div>
 
               {showAdvanced && (
                 <>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Labels (comma-separated)
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.config.labels || ''}
+                      onChange={(e) => handleConfigChange('labels', e.target.value)}
+                      placeholder="e.g., person, car, dog"
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                      disabled={isSubmitting}
+                    />
+                  </div>
+
                   <div>
                     <label className="flex items-center gap-2 text-sm font-medium text-gray-700 mb-2">
                       <input
                         type="checkbox"
-                        checked={formData.config.multiSelect || false}
-                        onChange={(e) => handleConfigChange('multiSelect', e.target.checked)}
+                        checked={formData.config.allowMultipleShapes || true}
+                        onChange={(e) => handleConfigChange('allowMultipleShapes', e.target.checked)}
                         className="rounded border-gray-300 text-primary-600 focus:ring-primary-500"
                         disabled={isSubmitting}
                       />
-                      Allow Multi-Select
+                      Allow Multiple Shapes per Image
                     </label>
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Label Names (comma-separated)
-                    </label>
-                    <input
-                      type="text"
-                      value={formData.config.labelNames || ''}
-                      onChange={(e) => handleConfigChange('labelNames', e.target.value)}
-                      placeholder="e.g., cat, dog, bird"
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-                      disabled={isSubmitting}
-                    />
-                  </div>
-                </>
-              )}
-            </div>
-          )}
-
-          {/* Object Detection Settings */}
-          {formData.annotation_type === 'object_detection' && (
-            <div className={showAdvanced ? 'space-y-4' : 'space-y-4'}>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Bounding Box Format
-                </label>
-                <select
-                  value={formData.config.boxFormat || 'coco'}
-                  onChange={(e) => handleConfigChange('boxFormat', e.target.value)}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-                  disabled={isSubmitting}
-                >
-                  <option value="coco">COCO</option>
-                  <option value="pascal_voc">Pascal VOC</option>
-                  <option value="yolo">YOLO</option>
-                </select>
-              </div>
-
-              {showAdvanced && (
-                <>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Predefined Labels (comma-separated)
-                    </label>
-                    <input
-                      type="text"
-                      value={formData.config.predefinedLabels || ''}
-                      onChange={(e) => handleConfigChange('predefinedLabels', e.target.value)}
-                      placeholder="e.g., person, car, building"
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-                      disabled={isSubmitting}
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Minimum Object Size (pixels)
-                    </label>
-                    <input
-                      type="number"
-                      min="1"
-                      value={formData.config.minObjectSize || ''}
-                      onChange={(e) => handleConfigChange('minObjectSize', parseInt(e.target.value) || null)}
-                      placeholder="e.g., 32"
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-                      disabled={isSubmitting}
-                    />
                   </div>
                 </>
               )}

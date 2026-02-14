@@ -19,6 +19,7 @@ import { assignmentService } from '../services/assignmentService.js';
 import { userService } from '../services/userService.js';
 import { LoadingSpinner } from '../components/common/LoadingSpinner.jsx';
 import TextAnnotationWorkspace from '../components/text-annotation/TextAnnotationWorkspace.jsx';
+import { ImageAnnotationWorkspace } from '../features/image-annotation';
 import { ProjectForm } from '../components/projects/ProjectForm.jsx';
 import toast from 'react-hot-toast';
 
@@ -373,11 +374,18 @@ export const ProjectDetail = () => {
 
       {/* Annotations Tab */}
       {activeTab === 'annotations' && (
-        <TextAnnotationWorkspace 
-          projectId={id} 
-          userRole={currentUser?.role}
-          project={project}
-        />
+        project.annotation_type === 'image' ? (
+          <ImageAnnotationWorkspace 
+            project={project}
+            userRole={currentUser?.role}
+          />
+        ) : (
+          <TextAnnotationWorkspace 
+            projectId={id} 
+            userRole={currentUser?.role}
+            project={project}
+          />
+        )
       )}
 
       {/* Team Tab */}
