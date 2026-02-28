@@ -1,6 +1,6 @@
 # Labelling Platform Frontend - Feature Status
 
-**Last Updated:** February 14, 2026
+**Last Updated:** February 28, 2026
 
 ---
 
@@ -131,6 +131,8 @@ This document provides the implementation status of all frontend features for th
 | Review Panel | ✅ | `src/components/text-annotation/ReviewPanel.jsx` |
 | Edit Annotation Form | ✅ | `src/components/text-annotation/EditAnnotationForm.jsx` |
 | Queue Status | ✅ | `src/components/text-annotation/QueueStatus.jsx` |
+| Rejected Annotations | ✅ | `src/components/text-annotation/RejectedAnnotations.jsx` |
+| All Annotations Dashboard | ✅ | `src/components/text-annotation/AllAnnotationsDashboard.jsx` |
 
 ### Services
 | Service | Status | File |
@@ -357,9 +359,10 @@ src/
 
 | Date | Version | Changes |
 |------|---------|---------|
+| Feb 28, 2026 | 1.2.0 | Edit & Approve for reviewers, Fix & Resubmit for rejected annotations |
 | Feb 14, 2026 | 1.1.0 | Added Brush and Eraser tools for image segmentation |
 | Feb 2, 2026 | 1.0.0 | Initial feature-complete release |
 
 ---
 
-*This document is auto-maintained. Last updated: February 14, 2026*
+*This document is auto-maintained. Last updated: February 28, 2026*

@@ -70,7 +70,7 @@ const AllAnnotationsDashboard = ({ projectId, projectLabels }) => {
         const annotation = data.find(a => a.annotator_id === id);
         return {
           id,
-          name: annotation.annotator?.full_name || annotation.annotator?.email || id,
+          name: annotation.annotator_name || annotation.annotator?.full_name || annotation.annotator?.email || `User ${id}`,
         };
       }));
     } catch (error) {
@@ -321,7 +321,7 @@ const AnnotationRow = ({ annotation, getStatusBadgeClass, getStatusIcon, onView 
         Resource #{annotation.resource_id}
       </td>
       <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900">
-        {annotation.annotator?.full_name || annotation.annotator?.email || 'Unknown'}
+        {annotation.annotator_name || annotation.annotator?.full_name || annotation.annotator?.email || 'Unknown'}
       </td>
       <td className="px-4 py-3 whitespace-nowrap">
         <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${getStatusBadgeClass(annotation.status)}`}>
@@ -333,7 +333,7 @@ const AnnotationRow = ({ annotation, getStatusBadgeClass, getStatusIcon, onView 
         {annotation.label || '-'}
       </td>
       <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500">
-        {new Date(annotation.updated_at).toLocaleString()}
+        {new Date(annotation.modified_at || annotation.updated_at || annotation.created_at).toLocaleString()}
       </td>
       <td className="px-4 py-3 whitespace-nowrap text-sm">
         <button
@@ -373,7 +373,7 @@ const AnnotationDetailModal = ({ annotation, onClose, getStatusBadgeClass }) => 
               <div className="grid grid-cols-2 gap-4 text-sm">
                 <div>
                   <p className="text-gray-500">Annotator:</p>
-                  <p className="font-medium">{annotation.annotator?.full_name || annotation.annotator?.email || 'Unknown'}</p>
+                  <p className="font-medium">{annotation.annotator_name || annotation.annotator?.full_name || annotation.annotator?.email || 'Unknown'}</p>
                 </div>
                 <div>
                   <p className="text-gray-500">Resource ID:</p>
@@ -393,7 +393,7 @@ const AnnotationDetailModal = ({ annotation, onClose, getStatusBadgeClass }) => 
                 </div>
                 <div>
                   <p className="text-gray-500">Updated:</p>
-                  <p className="font-medium">{new Date(annotation.updated_at).toLocaleString()}</p>
+                  <p className="font-medium">{new Date(annotation.modified_at || annotation.updated_at || annotation.created_at).toLocaleString()}</p>
                 </div>
               </div>
 
