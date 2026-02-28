@@ -45,5 +45,13 @@ export const textResourceService = {
   deleteResource: async (projectId, resourceId) => {
     const response = await api.delete(`${API_BASE}/projects/${projectId}/resources/${resourceId}`);
     return response.data;
+  },
+
+  // Get unannotated resources for queue-based workflow
+  getUnannotatedResources: async (projectId, limit = 50) => {
+    const response = await api.get(`${API_BASE}/projects/${projectId}/queue/unannotated`, {
+      params: { limit }
+    });
+    return response.data;
   }
 };

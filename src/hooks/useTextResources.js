@@ -1,7 +1,9 @@
 import { useState, useEffect, useCallback } from 'react';
 import { textResourceService } from '../services/textResourceService';
 
-export const useTextResources = (projectId) => {
+export const useTextResources = (projectId, options = {}) => {
+  const { useQueue = false, autoFetch = true } = options;
+  
   const [resources, setResources] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -13,7 +15,14 @@ export const useTextResources = (projectId) => {
     setLoading(true);
     setError(null);
     try {
-      const response = await textResourceService.listResources(projectId, page);
+      let response;
+      if (useQueue) {
+        // Fetch only unannotated resources for queue-based workflow
+        response = await textResourceService.getUnannotatedResources(projectId, 100);
+      } else {
+        // Fetch all resources
+        response = await textResourceService.listResources(projectId, page);
+      }
       setResources(response.data || []);
       setTotal(response.total || 0);
     } catch (err) {
@@ -21,7 +30,7 @@ export const useTextResources = (projectId) => {
     } finally {
       setLoading(false);
     }
-  }, [projectId]);
+  }, [projectId, useQueue]);
 
   const uploadResource = useCallback(async (file, name) => {
     if (!projectId) throw new Error('Project ID is required');
@@ -86,9 +95,11 @@ export const useTextResources = (projectId) => {
   }, [projectId]);
 
   useEffect(() => {
-    fetchResources();
+    if (autoFetch) {
+      fetchResources();
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [projectId]);
+  }, [projectId, autoFetch]);
 
   return {
     resources,

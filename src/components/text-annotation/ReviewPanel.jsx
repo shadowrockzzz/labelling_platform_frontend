@@ -1,22 +1,57 @@
 import React, { useState, useEffect } from 'react';
 import { ANNOTATION_STATUSES } from '../../features/text-annotation/constants';
-import { Plus, Eye, CheckCircle, XCircle } from 'lucide-react';
+import { Plus, Eye, CheckCircle, XCircle, FileText, MessageSquare, Edit, ChevronLeft } from 'lucide-react';
 import { textAnnotationService } from '../../services/textAnnotationService';
-import { toast } from 'react-hot-toast';
+import { textResourceService } from '../../services/textResourceService';
+import toast from 'react-hot-toast';
 import EditAnnotationForm from './EditAnnotationForm';
 
-const ReviewPanel = ({ annotations, onReview, loading, projectId }) => {
+/**
+ * ReviewPanel Component
+ * Shows submitted annotations for reviewers with ability to:
+ * - View resource content
+ * - Approve annotations
+ * - Update & Approve (with corrections)
+ * - Reject with comments
+ */
+const ReviewPanel = ({ projectId, annotations, onReview, loading, projectLabels }) => {
   const [selectedAnnotation, setSelectedAnnotation] = useState(null);
+  const [resourceContent, setResourceContent] = useState(null);
+  const [loadingResource, setLoadingResource] = useState(false);
   const [reviewComment, setReviewComment] = useState('');
+  const [rejectComment, setRejectComment] = useState('');
+  const [showRejectDialog, setShowRejectDialog] = useState(false);
   const [corrections, setCorrections] = useState([]);
   const [showCorrectionForm, setShowCorrectionForm] = useState(false);
   const [isCreatingCorrection, setIsCreatingCorrection] = useState(false);
   const [showCorrectionHistory, setShowCorrectionHistory] = useState(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Load submitted annotations for review
+  const [submittedAnnotations, setSubmittedAnnotations] = useState([]);
 
   useEffect(() => {
-    // Load corrections when an annotation is selected
-    const loadCorrections = async () => {
+    if (projectId) {
+      loadSubmittedAnnotations();
+    }
+  }, [projectId]);
+
+  const loadSubmittedAnnotations = async () => {
+    try {
+      const response = await textAnnotationService.listAnnotations(projectId, {
+        status: `${ANNOTATION_STATUSES.SUBMITTED},${ANNOTATION_STATUSES.UNDER_REVIEW}`,
+      });
+      setSubmittedAnnotations(response.data || []);
+    } catch (error) {
+      console.error('Failed to load submitted annotations:', error);
+    }
+  };
+
+  useEffect(() => {
+    // Load corrections and resource when an annotation is selected
+    const loadData = async () => {
       if (selectedAnnotation && projectId) {
+        // Load corrections
         try {
           const response = await textAnnotationService.listCorrections(
             projectId,
@@ -25,13 +60,76 @@ const ReviewPanel = ({ annotations, onReview, loading, projectId }) => {
           setCorrections(response.data || []);
         } catch (error) {
           console.error('Failed to load corrections:', error);
-          toast.error('Failed to load corrections');
+        }
+        
+        // Load resource content
+        if (selectedAnnotation.resource_id) {
+          setLoadingResource(true);
+          try {
+            const resource = await textResourceService.getResource(projectId, selectedAnnotation.resource_id);
+            setResourceContent(resource);
+          } catch (error) {
+            console.error('Failed to load resource:', error);
+            toast.error('Failed to load resource content');
+          } finally {
+            setLoadingResource(false);
+          }
         }
       }
     };
     
-    loadCorrections();
+    loadData();
   }, [selectedAnnotation, projectId]);
+
+  const handleSelectAnnotation = (annotation) => {
+    setSelectedAnnotation(annotation);
+    setReviewComment('');
+    setRejectComment('');
+    setResourceContent(null);
+  };
+
+  const handleBackToList = () => {
+    setSelectedAnnotation(null);
+    setResourceContent(null);
+    setReviewComment('');
+    setRejectComment('');
+    loadSubmittedAnnotations(); // Refresh the list
+  };
+
+  const handleApprove = async () => {
+    if (!selectedAnnotation) return;
+    
+    setIsSubmitting(true);
+    try {
+      await onReview(selectedAnnotation.id, 'approve', reviewComment || null);
+      toast.success('Annotation approved');
+      handleBackToList();
+    } catch (error) {
+      toast.error('Failed to approve annotation');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleReject = async () => {
+    if (!selectedAnnotation) return;
+    if (!rejectComment.trim()) {
+      toast.error('Please provide a reason for rejection');
+      return;
+    }
+    
+    setIsSubmitting(true);
+    try {
+      await onReview(selectedAnnotation.id, 'reject', rejectComment);
+      toast.success('Annotation rejected and sent back to annotator');
+      setShowRejectDialog(false);
+      handleBackToList();
+    } catch (error) {
+      toast.error('Failed to reject annotation');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
   const handleCreateCorrection = async (correctedData, comment) => {
     if (!selectedAnnotation || !projectId) return;
@@ -62,132 +160,200 @@ const ReviewPanel = ({ annotations, onReview, loading, projectId }) => {
     }
   };
 
-  const handleAcceptCorrection = async (correctionId, annotatorResponse) => {
-    if (!projectId) return;
-    
-    try {
-      await textAnnotationService.acceptCorrection(
-        projectId,
-        correctionId,
-        annotatorResponse
-      );
-      toast.success('Correction accepted and applied');
-      
-      // Reload corrections
-      const response = await textAnnotationService.listCorrections(
-        projectId,
-        selectedAnnotation.id
-      );
-      setCorrections(response.data || []);
-    } catch (error) {
-      console.error('Failed to accept correction:', error);
-      toast.error('Failed to accept correction');
-    }
+  const handleUpdateAndApprove = async () => {
+    // Open the correction form
+    setShowCorrectionForm(true);
   };
 
-  const handleReview = async (action) => {
-    if (!selectedAnnotation) return;
-    
-    await onReview(selectedAnnotation.id, action, reviewComment);
-    setSelectedAnnotation(null);
-    setReviewComment('');
-    setCorrections([]);
-  };
+  // Use submittedAnnotations if annotations prop is empty
+  const pendingReview = annotations?.length > 0 
+    ? annotations.filter(
+        a => a.status === ANNOTATION_STATUSES.UNDER_REVIEW || a.status === ANNOTATION_STATUSES.SUBMITTED
+      )
+    : submittedAnnotations;
 
-  const pendingReview = annotations.filter(
-    a => a.status === ANNOTATION_STATUSES.UNDER_REVIEW || a.status === ANNOTATION_STATUSES.SUBMITTED
-  );
-
-  if (pendingReview.length === 0) {
+  if (!selectedAnnotation) {
     return (
       <div className="bg-white rounded-lg shadow-md p-6">
-        <h3 className="text-lg font-semibold mb-4">Review Queue</h3>
-        <p className="text-center text-gray-500">No annotations pending review</p>
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-lg font-semibold text-gray-900">Review Queue</h3>
+          <span className="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm font-medium">
+            {pendingReview.length} pending
+          </span>
+        </div>
+        
+        {pendingReview.length === 0 ? (
+          <div className="text-center py-12">
+            <CheckCircle className="w-12 h-12 text-green-400 mx-auto mb-4" />
+            <p className="text-gray-500 text-lg">All caught up!</p>
+            <p className="text-gray-400 text-sm mt-1">No annotations pending review</p>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {pendingReview.map((annotation) => (
+              <div
+                key={annotation.id}
+                className="border border-gray-200 rounded-lg p-4 hover:shadow-md hover:border-blue-300 transition-all cursor-pointer"
+                onClick={() => handleSelectAnnotation(annotation)}
+              >
+                <div className="flex items-center justify-between">
+                  <div className="flex-1">
+                    <div className="flex items-center space-x-3 mb-2">
+                      <span className="px-2 py-1 text-xs font-semibold rounded bg-blue-100 text-blue-800">
+                        SUBMITTED
+                      </span>
+                      <span className="text-sm text-gray-600">
+                        Annotation #{annotation.id}
+                      </span>
+                    </div>
+                    <div className="flex items-center space-x-4 text-sm text-gray-500">
+                      <span className="flex items-center">
+                        <FileText className="w-4 h-4 mr-1" />
+                        Resource #{annotation.resource_id}
+                      </span>
+                      {annotation.label && (
+                        <span>Label: {annotation.label}</span>
+                      )}
+                    </div>
+                    {annotation.annotator && (
+                      <p className="text-sm text-gray-500 mt-1">
+                        By: {annotation.annotator.full_name || annotation.annotator.email}
+                      </p>
+                    )}
+                  </div>
+                  <div className="text-right">
+                    <span className="text-sm text-gray-500">
+                      {new Date(annotation.updated_at).toLocaleDateString()}
+                    </span>
+                    <ChevronLeft className="w-5 h-5 text-gray-400 mt-2" />
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     );
   }
 
   return (
-    <div className="bg-white rounded-lg shadow-md p-6">
-      <h3 className="text-lg font-semibold mb-4">Review Queue ({pendingReview.length})</h3>
-      
-      {!selectedAnnotation ? (
-        <div className="space-y-4">
-          {pendingReview.map((annotation) => (
-            <div
-              key={annotation.id}
-              className="border border-gray-200 rounded-md p-4 hover:shadow-md transition-shadow cursor-pointer"
-              onClick={() => setSelectedAnnotation(annotation)}
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="bg-white rounded-lg shadow-md p-4">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-3">
+            <button
+              onClick={handleBackToList}
+              className="p-1 hover:bg-gray-100 rounded"
             >
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="font-medium text-gray-900">
-                    {annotation.annotation_type?.toUpperCase()}
-                  </p>
-                  {annotation.label && (
-                    <p className="text-sm text-gray-600">Label: {annotation.label}</p>
-                  )}
-                </div>
-                <span className="text-sm text-gray-500">
-                  {new Date(annotation.updated_at).toLocaleDateString()}
-                </span>
-              </div>
-            </div>
-          ))}
+              <ChevronLeft className="w-5 h-5 text-gray-600" />
+            </button>
+            <h3 className="text-lg font-semibold text-gray-900">
+              Reviewing Annotation #{selectedAnnotation.id}
+            </h3>
+          </div>
+          <span className="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm font-medium">
+            {selectedAnnotation.status}
+          </span>
         </div>
-      ) : (
-        <div>
-          {/* Annotation Details */}
-          <div className="mb-6 p-4 bg-gray-50 rounded-md">
-            <div className="flex items-center justify-between mb-2">
-              <h4 className="font-semibold text-gray-900">
-                {selectedAnnotation.annotation_type?.toUpperCase()}
-              </h4>
-              <button
-                onClick={() => setSelectedAnnotation(null)}
-                className="text-sm text-blue-600 hover:underline"
-              >
-                Back to list
-              </button>
+      </div>
+
+      {/* Main content area */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Left: Resource Content */}
+        <div className="bg-white rounded-lg shadow-md p-6">
+          <h4 className="text-sm font-medium text-gray-700 mb-3">Resource Content</h4>
+          
+          {loadingResource ? (
+            <div className="flex items-center justify-center py-12">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
+              <span className="ml-3 text-gray-600">Loading content...</span>
             </div>
-            {selectedAnnotation.label && (
-              <p className="text-sm text-gray-700 mb-1">
-                <span className="font-medium">Label:</span> {selectedAnnotation.label}
-              </p>
-            )}
-            {selectedAnnotation.span_start !== null && selectedAnnotation.span_end !== null && (
-              <p className="text-sm text-gray-700 mb-1">
-                <span className="font-medium">Span:</span> {selectedAnnotation.span_start} - {selectedAnnotation.span_end}
-              </p>
-            )}
-            {selectedAnnotation.annotation_data && Object.keys(selectedAnnotation.annotation_data).length > 0 && (
-              <details className="mt-2">
-                <summary className="text-sm text-blue-600 cursor-pointer">View additional data</summary>
-                <pre className="mt-2 text-xs bg-white p-2 rounded border overflow-auto">
-                  {JSON.stringify(selectedAnnotation.annotation_data, null, 2)}
-                </pre>
+          ) : resourceContent ? (
+            <div className="bg-gray-50 rounded-lg p-4 max-h-96 overflow-y-auto">
+              <pre className="whitespace-pre-wrap text-sm text-gray-800">
+                {resourceContent.full_content || resourceContent.content || 'No content available'}
+              </pre>
+            </div>
+          ) : (
+            <div className="text-center py-12 text-gray-500">
+              Resource content not available
+            </div>
+          )}
+          
+          {/* Annotation data preview */}
+          {selectedAnnotation.annotation_data && (
+            <div className="mt-4">
+              <details className="bg-gray-50 rounded-lg">
+                <summary className="px-4 py-2 cursor-pointer text-sm font-medium text-gray-700">
+                  View Annotation Data
+                </summary>
+                <div className="px-4 py-3 border-t border-gray-200">
+                  <pre className="text-xs bg-white p-3 rounded border overflow-auto">
+                    {JSON.stringify(selectedAnnotation.annotation_data, null, 2)}
+                  </pre>
+                </div>
               </details>
-            )}
+            </div>
+          )}
+        </div>
+
+        {/* Right: Review Actions */}
+        <div className="space-y-4">
+          {/* Annotation Details */}
+          <div className="bg-white rounded-lg shadow-md p-6">
+            <h4 className="text-sm font-medium text-gray-700 mb-3">Annotation Details</h4>
+            
+            <div className="space-y-2 text-sm">
+              {selectedAnnotation.label && (
+                <div className="flex justify-between">
+                  <span className="text-gray-500">Label:</span>
+                  <span className="font-medium">{selectedAnnotation.label}</span>
+                </div>
+              )}
+              {selectedAnnotation.span_start !== null && selectedAnnotation.span_end !== null && (
+                <div className="flex justify-between">
+                  <span className="text-gray-500">Span:</span>
+                  <span className="font-medium">
+                    {selectedAnnotation.span_start} - {selectedAnnotation.span_end}
+                  </span>
+                </div>
+              )}
+              {selectedAnnotation.annotation_type && (
+                <div className="flex justify-between">
+                  <span className="text-gray-500">Type:</span>
+                  <span className="font-medium">{selectedAnnotation.annotation_type.toUpperCase()}</span>
+                </div>
+              )}
+              {selectedAnnotation.annotator && (
+                <div className="flex justify-between">
+                  <span className="text-gray-500">Annotator:</span>
+                  <span className="font-medium">
+                    {selectedAnnotation.annotator.full_name || selectedAnnotation.annotator.email}
+                  </span>
+                </div>
+              )}
+            </div>
           </div>
 
-          {/* Review Form */}
-          <div className="mb-4">
+          {/* Review Comment Input */}
+          <div className="bg-white rounded-lg shadow-md p-6">
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              Review Comment
+              Add Comment (optional for approval)
             </label>
             <textarea
               value={reviewComment}
               onChange={(e) => setReviewComment(e.target.value)}
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
               rows={3}
-              placeholder="Add your review comments here..."
+              placeholder="Add any notes about this review..."
             />
           </div>
 
           {/* Corrections Section */}
-          <div className="mb-4">
+          <div className="bg-white rounded-lg shadow-md p-6">
             <div className="flex items-center justify-between mb-3">
-              <h4 className="text-sm font-medium text-gray-900">
+              <h4 className="text-sm font-medium text-gray-700">
                 Corrections ({corrections.length})
               </h4>
               <button
@@ -201,7 +367,7 @@ const ReviewPanel = ({ annotations, onReview, loading, projectId }) => {
             </div>
 
             {corrections.length > 0 ? (
-              <div className="space-y-3">
+              <div className="space-y-3 max-h-48 overflow-y-auto">
                 {corrections.map((correction) => (
                   <div
                     key={correction.id}
@@ -213,10 +379,10 @@ const ReviewPanel = ({ annotations, onReview, loading, projectId }) => {
                         : 'border-yellow-300 bg-yellow-50'
                     }`}
                   >
-                    <div className="flex items-start justify-between mb-2">
+                    <div className="flex items-start justify-between">
                       <div className="flex-1">
                         <div className="flex items-center space-x-2 mb-1">
-                          <span className={`text-xs font-semibold px-2 py-1 rounded ${
+                          <span className={`text-xs font-semibold px-2 py-0.5 rounded ${
                             correction.status === 'accepted'
                               ? 'bg-green-200 text-green-800'
                               : correction.status === 'rejected'
@@ -225,7 +391,7 @@ const ReviewPanel = ({ annotations, onReview, loading, projectId }) => {
                           }`}>
                             {correction.status}
                           </span>
-                          <span className="text-xs text-gray-600">
+                          <span className="text-xs text-gray-500">
                             {new Date(correction.created_at).toLocaleString()}
                           </span>
                         </div>
@@ -233,70 +399,22 @@ const ReviewPanel = ({ annotations, onReview, loading, projectId }) => {
                           <p className="text-sm text-gray-700 italic">"{correction.comment}"</p>
                         )}
                       </div>
-                      
-                      {/* Show corrected data summary */}
                       <button
                         type="button"
-                        onClick={() => setShowCorrectionHistory(showCorrectionHistory === correction.id ? null : correction.id)}
-                        className="ml-2 text-gray-600 hover:text-gray-900"
-                        title="View details"
+                        onClick={() => setShowCorrectionHistory(
+                          showCorrectionHistory === correction.id ? null : correction.id
+                        )}
+                        className="text-gray-600 hover:text-gray-900"
                       >
                         <Eye size={16} />
                       </button>
                     </div>
 
-                    {/* Expandable correction details */}
                     {showCorrectionHistory === correction.id && correction.corrected_data && (
-                      <div className="mt-3 pt-3 border-t border-gray-200">
-                        <p className="text-xs font-medium text-gray-900 mb-2">Corrected Data:</p>
-                        {correction.corrected_data.spans && (
-                          <div className="space-y-2">
-                            {correction.corrected_data.spans.map((span, idx) => (
-                              <div key={idx} className="text-xs bg-white p-2 rounded border">
-                                <p><strong>Label:</strong> {span.label}</p>
-                                <p><strong>Text:</strong> {span.text}</p>
-                                <p><strong>Position:</strong> {span.start} - {span.end}</p>
-                              </div>
-                            ))}
-                          </div>
-                        )}
-                        <pre className="mt-2 text-xs bg-white p-2 rounded border overflow-auto">
+                      <div className="mt-2 pt-2 border-t border-gray-200">
+                        <pre className="text-xs bg-white p-2 rounded border overflow-auto">
                           {JSON.stringify(correction.corrected_data, null, 2)}
                         </pre>
-                        
-                        {/* Show annotator response if exists */}
-                        {correction.annotator_response && (
-                          <div className="mt-3 pt-3 border-t border-gray-200">
-                            <p className="text-xs font-medium text-gray-900 mb-1">
-                              Annotator Response:
-                            </p>
-                            <p className="text-sm text-gray-700 italic">
-                              "{correction.annotator_response}"
-                            </p>
-                          </div>
-                        )}
-                      </div>
-                    )}
-
-                    {/* Accept/Reject buttons for pending corrections (annotator action) */}
-                    {correction.status === 'pending' && (
-                      <div className="mt-3 pt-3 border-t border-gray-200 flex space-x-2">
-                        <button
-                          type="button"
-                          onClick={() => handleAcceptCorrection(correction.id, reviewComment)}
-                          className="flex-1 px-3 py-2 bg-green-600 text-white text-sm rounded-md hover:bg-green-700 flex items-center justify-center space-x-1"
-                        >
-                          <CheckCircle size={16} />
-                          <span>Accept</span>
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => handleReview('reject')}
-                          className="flex-1 px-3 py-2 bg-red-600 text-white text-sm rounded-md hover:bg-red-700 flex items-center justify-center space-x-1"
-                        >
-                          <XCircle size={16} />
-                          <span>Reject</span>
-                        </button>
                       </div>
                     )}
                   </div>
@@ -307,34 +425,116 @@ const ReviewPanel = ({ annotations, onReview, loading, projectId }) => {
             )}
           </div>
 
-          {/* Review Actions */}
-          <div className="flex space-x-3">
-            <button
-              onClick={() => handleReview('approve')}
-              disabled={loading}
-              className={`flex-1 px-4 py-2 rounded-md text-white font-medium transition-colors ${
-                loading
-                  ? 'bg-gray-400 cursor-not-allowed'
-                  : 'bg-green-500 hover:bg-green-600'
-              }`}
-            >
-              {loading ? 'Processing...' : 'Approve'}
-            </button>
-            <button
-              onClick={() => handleReview('reject')}
-              disabled={loading}
-              className={`flex-1 px-4 py-2 rounded-md text-white font-medium transition-colors ${
-                loading
-                  ? 'bg-gray-400 cursor-not-allowed'
-                  : 'bg-red-500 hover:bg-red-600'
-              }`}
-            >
-              {loading ? 'Processing...' : 'Reject'}
-            </button>
+          {/* Action Buttons */}
+          <div className="bg-white rounded-lg shadow-md p-6">
+            <div className="space-y-3">
+              {/* Approve Button */}
+              <button
+                onClick={handleApprove}
+                disabled={isSubmitting || loading}
+                className={`w-full px-4 py-3 rounded-md text-white font-medium transition-colors flex items-center justify-center space-x-2 ${
+                  isSubmitting || loading
+                    ? 'bg-gray-400 cursor-not-allowed'
+                    : 'bg-green-600 hover:bg-green-700'
+                }`}
+              >
+                <CheckCircle size={18} />
+                <span>Approve</span>
+              </button>
+
+              {/* Update & Approve Button */}
+              <button
+                onClick={handleUpdateAndApprove}
+                disabled={isSubmitting || loading}
+                className={`w-full px-4 py-3 rounded-md text-white font-medium transition-colors flex items-center justify-center space-x-2 ${
+                  isSubmitting || loading
+                    ? 'bg-gray-400 cursor-not-allowed'
+                    : 'bg-blue-600 hover:bg-blue-700'
+                }`}
+              >
+                <Edit size={18} />
+                <span>Update & Approve</span>
+              </button>
+
+              {/* Reject Button */}
+              <button
+                onClick={() => setShowRejectDialog(true)}
+                disabled={isSubmitting || loading}
+                className={`w-full px-4 py-3 rounded-md text-white font-medium transition-colors flex items-center justify-center space-x-2 ${
+                  isSubmitting || loading
+                    ? 'bg-gray-400 cursor-not-allowed'
+                    : 'bg-red-600 hover:bg-red-700'
+                }`}
+              >
+                <XCircle size={18} />
+                <span>Reject with Comments</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Reject Dialog */}
+      {showRejectDialog && (
+        <div className="fixed inset-0 z-50 overflow-y-auto">
+          <div className="flex items-center justify-center min-h-screen pt-4 px-4 pb-20 text-center">
+            <div className="fixed inset-0 transition-opacity" onClick={() => setShowRejectDialog(false)}>
+              <div className="absolute inset-0 bg-gray-500 opacity-75"></div>
+            </div>
+
+            <div className="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
+              <div className="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
+                <div className="sm:flex sm:items-start">
+                  <div className="mx-auto flex-shrink-0 flex items-center justify-center h-12 w-12 rounded-full bg-red-100 sm:mx-0 sm:h-10 sm:w-10">
+                    <XCircle className="h-6 w-6 text-red-600" />
+                  </div>
+                  <div className="mt-3 text-center sm:mt-0 sm:ml-4 sm:text-left w-full">
+                    <h3 className="text-lg leading-6 font-medium text-gray-900">
+                      Reject Annotation
+                    </h3>
+                    <div className="mt-2">
+                      <p className="text-sm text-gray-500 mb-3">
+                        Please provide a reason for rejection. This will be sent back to the annotator.
+                      </p>
+                      <textarea
+                        value={rejectComment}
+                        onChange={(e) => setRejectComment(e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-red-500"
+                        rows={4}
+                        placeholder="Enter rejection reason..."
+                        autoFocus
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div className="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
+                <button
+                  onClick={handleReject}
+                  disabled={!rejectComment.trim() || isSubmitting}
+                  className={`w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 text-base font-medium text-white sm:ml-3 sm:w-auto sm:text-sm ${
+                    !rejectComment.trim() || isSubmitting
+                      ? 'bg-gray-400 cursor-not-allowed'
+                      : 'bg-red-600 hover:bg-red-700'
+                  }`}
+                >
+                  {isSubmitting ? 'Rejecting...' : 'Reject'}
+                </button>
+                <button
+                  onClick={() => {
+                    setShowRejectDialog(false);
+                    setRejectComment('');
+                  }}
+                  className="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}
-      
+
       {/* EditAnnotationForm Modal */}
       <EditAnnotationForm
         isOpen={showCorrectionForm}

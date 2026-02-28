@@ -8,6 +8,8 @@ import TextAnnotationEditor from './TextAnnotationEditor';
 import AnnotationList from './AnnotationList';
 import ReviewPanel from './ReviewPanel';
 import QueueStatus from './QueueStatus';
+import RejectedAnnotations from './RejectedAnnotations';
+import AllAnnotationsDashboard from './AllAnnotationsDashboard';
 import { ANNOTATION_STATUSES } from '../../features/text-annotation/constants';
 
 const TextAnnotationWorkspace = ({ projectId, userRole, project }) => {
@@ -16,8 +18,27 @@ const TextAnnotationWorkspace = ({ projectId, userRole, project }) => {
   const [loadingResource, setLoadingResource] = useState(false);
   const [editingAnnotation, setEditingAnnotation] = useState(null);
   const [showEditor, setShowEditor] = useState(false);
-  const [activeTab, setActiveTab] = useState('annotate'); // 'annotate' or 'review'
+  
+  // Determine user capabilities based on role (convert to uppercase for comparison)
+  const normalizedRole = userRole ? userRole.toUpperCase() : '';
+  const canUpload = ['ADMIN', 'PROJECT_MANAGER', 'ANNOTATOR'].includes(normalizedRole);
+  const canAnnotate = ['ADMIN', 'PROJECT_MANAGER', 'ANNOTATOR'].includes(normalizedRole);
+  const canReview = ['ADMIN', 'PROJECT_MANAGER', 'REVIEWER'].includes(normalizedRole);
+  const isAdmin = normalizedRole === 'ADMIN';
 
+  // Determine default tab based on role
+  const getDefaultTab = () => {
+    if (canAnnotate && !canReview) return 'annotate';  // Annotators start on annotate tab
+    if (canReview) return 'review';  // Reviewers/Admins start on review tab
+    return 'annotate';
+  };
+  
+  const [activeTab, setActiveTab] = useState(getDefaultTab());
+
+  // For annotators: use queue mode (only unannotated resources)
+  // For reviewers/admins: don't load resources in annotate mode (they use review mode)
+  const shouldLoadResources = canAnnotate && !canReview;
+  
   const {
     resources,
     loading: resourcesLoading,
@@ -25,7 +46,8 @@ const TextAnnotationWorkspace = ({ projectId, userRole, project }) => {
     addUrlResource,
     deleteResource,
     getResource,
-  } = useTextResources(projectId);
+    fetchResources,
+  } = useTextResources(projectId, { useQueue: true, autoFetch: shouldLoadResources });
 
   const {
     annotations,
@@ -39,12 +61,6 @@ const TextAnnotationWorkspace = ({ projectId, userRole, project }) => {
     projectId, 
     activeTab === 'review' ? { status: 'submitted' } : (selectedResource ? { resource_id: selectedResource.id } : {})
   );
-
-  // Determine user capabilities based on role (convert to uppercase for comparison)
-  const normalizedRole = userRole ? userRole.toUpperCase() : '';
-  const canUpload = ['ADMIN', 'PROJECT_MANAGER', 'ANNOTATOR'].includes(normalizedRole);
-  const canAnnotate = ['ADMIN', 'PROJECT_MANAGER', 'ANNOTATOR'].includes(normalizedRole);
-  const canReview = ['ADMIN', 'PROJECT_MANAGER', 'REVIEWER'].includes(normalizedRole);
 
   const handleResourceSelect = async (resource) => {
     setSelectedResource(resource);
@@ -138,6 +154,12 @@ const TextAnnotationWorkspace = ({ projectId, userRole, project }) => {
     try {
       await submitAnnotation(annotationId);
       alert('Annotation submitted for review');
+      // Clear selection and refresh the queue to remove the submitted resource
+      setSelectedResource(null);
+      setResourceWithContent(null);
+      setShowEditor(false);
+      setEditingAnnotation(null);
+      fetchResources(); // Refresh the queue
     } catch (error) {
       alert('Failed to submit annotation: ' + (error.response?.data?.error || error.message));
     }
@@ -187,18 +209,37 @@ const TextAnnotationWorkspace = ({ projectId, userRole, project }) => {
 
   return (
     <div className="space-y-6">
-      {/* Tab Navigation */}
+      {/* Tab Navigation - Different tabs based on role */}
       <div className="flex space-x-2 border-b border-gray-200">
-        <button
-          onClick={() => setActiveTab('annotate')}
-          className={`px-4 py-2 font-medium transition-colors ${
-            activeTab === 'annotate'
-              ? 'border-b-2 border-blue-500 text-blue-600'
-              : 'text-gray-500 hover:text-gray-700'
-          }`}
-        >
-          Annotate
-        </button>
+        {/* Annotate tab - Only for annotators */}
+        {canAnnotate && !canReview && (
+          <button
+            onClick={() => setActiveTab('annotate')}
+            className={`px-4 py-2 font-medium transition-colors ${
+              activeTab === 'annotate'
+                ? 'border-b-2 border-blue-500 text-blue-600'
+                : 'text-gray-500 hover:text-gray-700'
+            }`}
+          >
+            Annotate
+          </button>
+        )}
+        
+        {/* My Rejected tab - Only for annotators to see their rejected work */}
+        {canAnnotate && !canReview && (
+          <button
+            onClick={() => setActiveTab('rejected')}
+            className={`px-4 py-2 font-medium transition-colors ${
+              activeTab === 'rejected'
+                ? 'border-b-2 border-orange-500 text-orange-600'
+                : 'text-gray-500 hover:text-gray-700'
+            }`}
+          >
+            My Rejected
+          </button>
+        )}
+        
+        {/* Review tab - Only for reviewers/admins */}
         {canReview && (
           <button
             onClick={() => setActiveTab('review')}
@@ -208,12 +249,27 @@ const TextAnnotationWorkspace = ({ projectId, userRole, project }) => {
                 : 'text-gray-500 hover:text-gray-700'
             }`}
           >
-            Review
+            Review Queue
+          </button>
+        )}
+        
+        {/* All Annotations tab - Only for admins */}
+        {isAdmin && (
+          <button
+            onClick={() => setActiveTab('all')}
+            className={`px-4 py-2 font-medium transition-colors ${
+              activeTab === 'all'
+                ? 'border-b-2 border-purple-500 text-purple-600'
+                : 'text-gray-500 hover:text-gray-700'
+            }`}
+          >
+            All Annotations
           </button>
         )}
       </div>
 
-      {activeTab === 'annotate' ? (
+      {/* Annotate Tab - Only accessible by annotators */}
+      {activeTab === 'annotate' && canAnnotate && !canReview && (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Left Column: Resources */}
           <div className="space-y-6">
@@ -284,12 +340,32 @@ const TextAnnotationWorkspace = ({ projectId, userRole, project }) => {
             <QueueStatus projectId={projectId} />
           </div>
         </div>
-      ) : (
-        /* Review Tab */
+      )}
+
+      {/* My Rejected Tab - Only for annotators */}
+      {activeTab === 'rejected' && canAnnotate && !canReview && (
+        <RejectedAnnotations
+          projectId={projectId}
+          onEditAnnotation={handleEditAnnotation}
+        />
+      )}
+
+      {/* Review Tab - Only for reviewers/admins */}
+      {activeTab === 'review' && canReview && (
         <ReviewPanel
+          projectId={projectId}
           annotations={annotations}
           onReview={handleReviewAnnotation}
           loading={annotationsLoading}
+          projectLabels={project?.labels || []}
+        />
+      )}
+
+      {/* All Annotations Tab - Only for admins */}
+      {activeTab === 'all' && isAdmin && (
+        <AllAnnotationsDashboard
+          projectId={projectId}
+          projectLabels={project?.labels || []}
         />
       )}
     </div>
