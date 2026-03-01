@@ -1,103 +1,148 @@
-# Frontend Documentation
+# Labelling Platform - Frontend Documentation
 
-This directory contains documentation specific to the React frontend.
+**Version:** 1.0.0 | **Last Updated:** March 1, 2026
 
-## Files
+---
 
-### FEATURE_GUIDE.md
-Comprehensive guide covering all frontend features including:
-- Text Annotation System
-- Annotation Sub-Types (NER, POS, Sentiment, etc.)
-- Project Management
-- User Management
-- Queue Management
-- Common features and best practices
+## Overview
 
-## When to Use This Guide
+React-based frontend for the Labelling Platform, providing intuitive interfaces for text and image annotation workflows.
 
-- **Feature Development:** Reference FEATURE_GUIDE.md for feature specifications
-- **Component Development:** See implementation details for each feature
-- **User Flow Documentation:** Understand how users interact with the application
-- **Troubleshooting:** Component-level troubleshooting tips
+### Tech Stack
 
-## Quick Reference
+| Technology | Version | Purpose |
+|------------|---------|---------|
+| React | 18.x | UI framework |
+| Vite | 5.x | Build tool |
+| Tailwind CSS | 3.x | Styling |
+| React Router | 6.x | Navigation |
+| Axios | 1.x | HTTP client |
 
-**Start Frontend Dev Server:**
+---
+
+## Documentation Index
+
+### Getting Started
+
+| Document | Description |
+|----------|-------------|
+| [01-GETTING-STARTED.md](01-GETTING-STARTED.md) | Installation, setup, and development workflow |
+
+### Architecture
+
+| Document | Description |
+|----------|-------------|
+| [02-COMPONENTS.md](02-COMPONENTS.md) | Component hierarchy and common components |
+| [05-STATE-MANAGEMENT.md](05-STATE-MANAGEMENT.md) | Context, hooks, and state patterns |
+
+### Features
+
+| Document | Description |
+|----------|-------------|
+| [03-TEXT-ANNOTATION.md](03-TEXT-ANNOTATION.md) | Text annotation components and workflow |
+| [04-IMAGE-ANNOTATION.md](04-IMAGE-ANNOTATION.md) | Image annotation components and workflow |
+
+### Reference
+
+| Document | Description |
+|----------|-------------|
+| [CHANGELOG.md](CHANGELOG.md) | Version history and changes |
+
+---
+
+## Quick Start
+
 ```bash
+# Navigate to frontend directory
 cd labelling_platform_frontend
+
+# Install dependencies
 npm install
+
+# Start development server
 npm run dev
+
+# Open http://localhost:5173
 ```
 
-**Build for Production:**
+---
+
+## Project Structure
+
+```
+labelling_platform_frontend/
+├── src/
+│   ├── components/          # Reusable components
+│   │   ├── auth/           # Authentication components
+│   │   ├── common/         # Common UI components
+│   │   ├── layout/         # Layout components
+│   │   ├── projects/       # Project management
+│   │   └── text-annotation/# Text annotation
+│   ├── features/           # Feature-based modules
+│   │   ├── text-annotation/
+│   │   └── image-annotation/
+│   ├── hooks/              # Custom React hooks
+│   ├── contexts/           # React contexts
+│   ├── pages/              # Page components
+│   ├── services/           # API services
+│   └── utils/              # Utility functions
+├── docs/                   # Documentation
+├── public/                 # Static assets
+└── package.json
+```
+
+---
+
+## Key Features
+
+### Authentication
+- JWT-based authentication
+- Role-based route protection
+- Automatic token refresh
+
+### Text Annotation
+- 8 annotation sub-types
+- Batch workflow with pending spans
+- Label palette with custom colors
+
+### Image Annotation
+- Bounding box, polygon, keypoint shapes
+- Interactive canvas with zoom/pan
+- Shape list management
+
+### Review System
+- Approve/reject annotations
+- Review corrections workflow
+- Status tracking
+
+---
+
+## Available Scripts
+
 ```bash
-npm run build
+# Development
+npm run dev          # Start dev server
+
+# Production
+npm run build        # Build for production
+npm run preview      # Preview production build
+
+# Code Quality
+npm run lint         # Run ESLint
 ```
 
-**Run Tests:**
-```bash
-npm test
+---
+
+## Environment Variables
+
+Create `.env` file:
+
+```env
+VITE_API_BASE_URL=http://localhost:8000/api/v1
 ```
 
-## Key Features Documented
-
-### Text Annotation System
-- Annotation types and sub-types
-- Annotation lifecycle (Draft → Submitted → Reviewed)
-- Resource upload and management
-- S3/MinIO storage integration
-
-### User Interface Components
-- TextAnnotationEditor
-- AnnotationList
-- TextAnnotationWorkspace
-- ResourceUploader
-- ReviewPanel
-- QueueStatus
-
-### User Roles & Permissions
-- Admin, Project Manager, Reviewer, Annotator
-- Role-based UI rendering
-- Permission checks
-
-## Important Notes
-
-- Frontend communicates with backend via REST API
-- JWT tokens used for authentication (stored in localStorage)
-- Auto-refresh mechanism for tokens
-- Role-based route protection implemented
-- Uses React 18 with Hooks
-- Styled with Tailwind CSS
-- Built with Vite for fast development
-
-## Recent Updates
-
-### Classification Type Configuration (February 3, 2026)
-- Project configuration now includes classification type selector
-- Three classification types supported:
-  - **Binary**: 2 classes, mutually exclusive selection
-  - **Multi-Class**: 3+ classes, mutually exclusive selection
-  - **Multi-Label**: 3+ classes, can select multiple labels simultaneously
-- LabelPalette automatically adapts behavior based on project's classification type
-- TextAnnotationEditor displays classification type configuration
-- Eliminates need to manually configure classification type for each annotation
-- Classification type is stored in project config and applied project-wide
-
-### S3/MinIO Integration (February 2, 2026)
-- Text content now displays properly from S3 storage
-- File uploads work with MinIO (development) and AWS S3 (production)
-- File download implemented for annotation workflow
-- See FEATURE_GUIDE.md for detailed S3 integration
-
-## Need More Help?
-
-- **Frontend README:** `../README.md`
-- **Backend Documentation:** `../labelling_platform_backend/docs/`
-- **Main Project Setup:** `../labelling_platform_backend/docs/SETUP_GUIDE.md`
-- **API Documentation:** `http://localhost:8000/docs`
+---
 
 ## Related Documentation
 
-- **Backend Docs:** `../labelling_platform_backend/docs/README.md`
-- **Bug Fixes:** `../labelling_platform_backend/docs/BUG_FIX_LOG.md`
-- **Getting Started:** `../labelling_platform_backend/docs/GETTING_STARTED.md`
+- [Backend Documentation](../../labelling_platform_backend/docs/README.md)
