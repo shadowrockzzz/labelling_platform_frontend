@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { textAnnotationService } from '../../services/textAnnotationService';
+import imageAnnotationService from '../../services/imageAnnotationService';
 import { ANNOTATION_STATUSES } from '../../features/text-annotation/constants';
 import { 
   Filter, 
@@ -9,10 +10,46 @@ import {
   XCircle, 
   Clock, 
   FileText,
+  Image,
   ChevronDown,
   ChevronUp
 } from 'lucide-react';
 import toast from 'react-hot-toast';
+
+// Annotation sub-type display names
+const SUB_TYPE_LABELS = {
+  // Text annotation types
+  ner: 'Named Entity Recognition',
+  pos: 'Part of Speech',
+  sentiment: 'Sentiment Analysis',
+  relation: 'Relation Extraction',
+  span: 'Span Categorization',
+  classification: 'Text Classification',
+  dependency: 'Dependency Parsing',
+  coreference: 'Coreference Resolution',
+  // Image annotation types
+  bounding_box: 'Bounding Box',
+  polygon: 'Polygon Segmentation',
+  segmentation: 'Instance Segmentation',
+  keypoint: 'Keypoint Detection',
+  image_classification: 'Image Classification',
+};
+
+// Format date safely (handles null, undefined, invalid dates)
+const formatDate = (dateValue) => {
+  if (!dateValue) return '-';
+  
+  try {
+    const date = new Date(dateValue);
+    // Check if date is valid
+    if (isNaN(date.getTime())) {
+      return '-';
+    }
+    return date.toLocaleString();
+  } catch {
+    return '-';
+  }
+};
 
 /**
  * AllAnnotationsDashboard Component
@@ -50,8 +87,33 @@ const AllAnnotationsDashboard = ({ projectId, projectLabels }) => {
       if (filters.annotator_id) params.annotator_id = filters.annotator_id;
       if (filters.label) params.label = filters.label;
       
-      const response = await textAnnotationService.listAnnotations(projectId, params);
-      const data = response.data || [];
+      // Load both text and image annotations
+      const [textResponse, imageResponse] = await Promise.all([
+        textAnnotationService.listAnnotations(projectId, params).catch(() => ({ data: [] })),
+        imageAnnotationService.getAnnotations(projectId, params).catch(() => ({ items: [] }))
+      ]);
+      
+      // Normalize text annotations
+      const textData = (textResponse.data || []).map(a => ({
+        ...a,
+        annotation_type: a.annotation_type || 'text',
+        updated_at: a.modified_at || a.updated_at || a.created_at
+      }));
+      
+      // Normalize image annotations
+      const imageData = (imageResponse.items || imageResponse.data || []).map(a => ({
+        ...a,
+        annotation_type: a.annotation_type || 'image',
+        updated_at: a.updated_at || a.created_at
+      }));
+      
+      // Combine and sort by updated_at
+      const data = [...textData, ...imageData].sort((a, b) => {
+        const dateA = new Date(a.updated_at || 0);
+        const dateB = new Date(b.updated_at || 0);
+        return dateB - dateA;
+      });
+      
       setAnnotations(data);
       
       // Calculate stats
@@ -310,8 +372,36 @@ const AllAnnotationsDashboard = ({ projectId, projectLabels }) => {
   );
 };
 
+// Get annotation type icon
+const getTypeIcon = (annotationType) => {
+  switch (annotationType) {
+    case 'text':
+      return <FileText className="w-4 h-4" />;
+    case 'image':
+      return <Image className="w-4 h-4" />;
+    default:
+      return <FileText className="w-4 h-4" />;
+  }
+};
+
+// Get annotation type badge class
+const getTypeBadgeClass = (annotationType) => {
+  switch (annotationType) {
+    case 'text':
+      return 'bg-purple-100 text-purple-800';
+    case 'image':
+      return 'bg-indigo-100 text-indigo-800';
+    default:
+      return 'bg-gray-100 text-gray-800';
+  }
+};
+
 /* Sub-component for table rows */
 const AnnotationRow = ({ annotation, getStatusBadgeClass, getStatusIcon, onView }) => {
+  const annotationType = annotation.annotation_type || 'text';
+  const subType = annotation.annotation_sub_type;
+  const subTypeLabel = SUB_TYPE_LABELS[subType] || subType || '-';
+  
   return (
     <tr className="hover:bg-gray-50">
       <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900">
@@ -329,11 +419,14 @@ const AnnotationRow = ({ annotation, getStatusBadgeClass, getStatusIcon, onView 
           <span className="ml-1">{annotation.status}</span>
         </span>
       </td>
-      <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500">
-        {annotation.label || '-'}
+      <td className="px-4 py-3 whitespace-nowrap">
+        <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${getTypeBadgeClass(annotationType)}`}>
+          {getTypeIcon(annotationType)}
+          <span className="ml-1">{subTypeLabel}</span>
+        </span>
       </td>
       <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500">
-        {new Date(annotation.modified_at || annotation.updated_at || annotation.created_at).toLocaleString()}
+        {formatDate(annotation.modified_at || annotation.updated_at || annotation.created_at)}
       </td>
       <td className="px-4 py-3 whitespace-nowrap text-sm">
         <button
@@ -350,6 +443,10 @@ const AnnotationRow = ({ annotation, getStatusBadgeClass, getStatusIcon, onView 
 
 /* Sub-component for annotation detail modal */
 const AnnotationDetailModal = ({ annotation, onClose, getStatusBadgeClass }) => {
+  const annotationType = annotation.annotation_type || 'text';
+  const subType = annotation.annotation_sub_type;
+  const subTypeLabel = SUB_TYPE_LABELS[subType] || subType || '-';
+  
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto">
       <div className="flex items-center justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
@@ -363,9 +460,15 @@ const AnnotationDetailModal = ({ annotation, onClose, getStatusBadgeClass }) => 
               <h3 className="text-lg font-semibold text-gray-900">
                 Annotation #{annotation.id}
               </h3>
-              <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusBadgeClass(annotation.status)}`}>
-                {annotation.status}
-              </span>
+              <div className="flex items-center space-x-2">
+                <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${getTypeBadgeClass(annotationType)}`}>
+                  {getTypeIcon(annotationType)}
+                  <span className="ml-1">{annotationType}</span>
+                </span>
+                <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusBadgeClass(annotation.status)}`}>
+                  {annotation.status}
+                </span>
+              </div>
             </div>
 
             <div className="space-y-4">
@@ -380,20 +483,20 @@ const AnnotationDetailModal = ({ annotation, onClose, getStatusBadgeClass }) => 
                   <p className="font-medium">{annotation.resource_id}</p>
                 </div>
                 <div>
-                  <p className="text-gray-500">Type:</p>
-                  <p className="font-medium">{annotation.annotation_type || '-'}</p>
+                  <p className="text-gray-500">Annotation Type:</p>
+                  <p className="font-medium capitalize">{annotationType}</p>
                 </div>
                 <div>
-                  <p className="text-gray-500">Label:</p>
-                  <p className="font-medium">{annotation.label || '-'}</p>
+                  <p className="text-gray-500">Sub-Type:</p>
+                  <p className="font-medium">{subTypeLabel}</p>
                 </div>
                 <div>
                   <p className="text-gray-500">Created:</p>
-                  <p className="font-medium">{new Date(annotation.created_at).toLocaleString()}</p>
+                  <p className="font-medium">{formatDate(annotation.created_at)}</p>
                 </div>
                 <div>
                   <p className="text-gray-500">Updated:</p>
-                  <p className="font-medium">{new Date(annotation.modified_at || annotation.updated_at || annotation.created_at).toLocaleString()}</p>
+                  <p className="font-medium">{formatDate(annotation.modified_at || annotation.updated_at || annotation.created_at)}</p>
                 </div>
               </div>
 

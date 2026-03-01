@@ -9,6 +9,29 @@ All notable changes to the Labelling Platform frontend will be documented in thi
 ### Added
 - Comprehensive documentation restructure
 
+### Changed
+- **Reviewer Edit Support**: Frontend now supports reviewer direct editing
+  - ReviewPanel allows reviewers to edit annotations directly
+  - ImageAnnotationWorkspace supports reviewer shape editing
+  - TextAnnotationEditor supports reviewer span editing
+
+---
+
+## [2026.03] - March 2026
+
+### Added
+
+#### Backend Integration
+- Support for Redis queue system (backend feature, frontend compatible)
+- Queue status polling improvements
+
+### Changed
+
+#### Reviewer Permissions
+- Reviewers can now directly edit annotations in ReviewPanel
+- Edit buttons shown for reviewers on rejected/draft annotations
+- Status automatically resets to draft when reviewer edits
+
 ---
 
 ## [2026.02] - February 2026
