@@ -1,9 +1,11 @@
 import { useState, useEffect } from 'react';
-import { ChevronDown, ChevronUp, Info, User as UserIcon } from 'lucide-react';
+import { ChevronDown, ChevronUp, Info, User as UserIcon, Plus, Trash2, GripVertical, AlertCircle } from 'lucide-react';
 import { LoadingSpinner } from '../common/LoadingSpinner.jsx';
 import { userService } from '../../services/userService.js';
 import { getSubTypeOptions } from '../../features/text-annotation/constants.js';
 import LabelEditor from './LabelEditor.jsx';
+import { assignmentService } from '../../services/assignmentService.js';
+import toast from 'react-hot-toast';
 
 /**
  * ProjectForm Component
@@ -32,13 +34,119 @@ export const ProjectForm = ({ project, onSubmit, onCancel, isSubmitting }) => {
   const [availableManagers, setAvailableManagers] = useState([]);
   const [loadingManagers, setLoadingManagers] = useState(false);
   const [showAdvanced, setShowAdvanced] = useState(false);
+  
+  // Multi-level reviewer chain state (now available in both create and edit modes)
+  const [reviewerChain, setReviewerChain] = useState([]);
+  const [availableReviewers, setAvailableReviewers] = useState([]);
+  const [loadingReviewers, setLoadingReviewers] = useState(false);
+  const [savingReviewers, setSavingReviewers] = useState(false);
 
-  // Fetch available managers
+  // Fetch available managers and reviewers
   useEffect(() => {
+    // Always fetch available reviewers (for both create and edit modes)
+    fetchAvailableReviewersList();
+    
     if (isEditMode) {
       fetchAvailableManagers();
+      fetchExistingReviewers();
     }
-  }, [isEditMode]);
+  }, [isEditMode, project?.id]);
+  
+  // Fetch existing reviewers for this project (edit mode)
+  const fetchExistingReviewers = async () => {
+    if (!project?.id) return;
+    try {
+      setLoadingReviewers(true);
+      const response = await assignmentService.getReviewerChain(project.id);
+      // Sort by review_level
+      const sorted = (response.data || []).sort((a, b) => a.review_level - b.review_level);
+      setReviewerChain(sorted);
+    } catch (error) {
+      console.error('Failed to fetch reviewers:', error);
+    } finally {
+      setLoadingReviewers(false);
+    }
+  };
+  
+  // Fetch available reviewers (users who can be assigned as reviewers)
+  const fetchAvailableReviewersList = async () => {
+    try {
+      const response = await userService.getAllUsers();
+      // Filter for users who can be reviewers (reviewer role, admin, or project_manager)
+      const reviewers = response.data.filter(user => 
+        user.role === 'reviewer' || user.role === 'admin' || user.role === 'project_manager'
+      );
+      setAvailableReviewers(reviewers);
+    } catch (error) {
+      console.error('Failed to fetch available reviewers:', error);
+    }
+  };
+  
+  // Add a reviewer to the chain
+  const handleAddReviewerToChain = () => {
+    const newLevel = reviewerChain.length + 1;
+    setReviewerChain([...reviewerChain, { user_id: null, review_level: newLevel, user: null }]);
+  };
+  
+  // Remove a reviewer from the chain
+  const handleRemoveReviewerFromChain = (index) => {
+    const updated = reviewerChain.filter((_, i) => i !== index);
+    // Re-index levels
+    setReviewerChain(updated.map((r, i) => ({ ...r, review_level: i + 1 })));
+  };
+  
+  // Update reviewer at a specific index
+  const handleUpdateReviewerInChain = (index, userId) => {
+    const user = availableReviewers.find(u => u.id === parseInt(userId));
+    const updated = [...reviewerChain];
+    updated[index] = {
+      ...updated[index],
+      user_id: parseInt(userId),
+      user: user
+    };
+    setReviewerChain(updated);
+  };
+  
+  // Move reviewer up in chain
+  const handleMoveReviewerUp = (index) => {
+    if (index === 0) return;
+    const updated = [...reviewerChain];
+    [updated[index - 1], updated[index]] = [updated[index], updated[index - 1]];
+    // Re-index levels
+    setReviewerChain(updated.map((r, i) => ({ ...r, review_level: i + 1 })));
+  };
+  
+  // Move reviewer down in chain
+  const handleMoveReviewerDown = (index) => {
+    if (index === reviewerChain.length - 1) return;
+    const updated = [...reviewerChain];
+    [updated[index], updated[index + 1]] = [updated[index + 1], updated[index]];
+    // Re-index levels
+    setReviewerChain(updated.map((r, i) => ({ ...r, review_level: i + 1 })));
+  };
+  
+  // Save reviewer chain
+  const handleSaveReviewerChain = async () => {
+    if (!project?.id) return;
+    
+    // Validate all reviewers are selected
+    const hasEmptySlots = reviewerChain.some(r => !r.user_id);
+    if (hasEmptySlots) {
+      toast.error('Please select a reviewer for each level');
+      return;
+    }
+    
+    setSavingReviewers(true);
+    try {
+      await assignmentService.updateReviewerChain(project.id, reviewerChain);
+      toast.success('Reviewer chain updated successfully');
+      fetchExistingReviewers();
+    } catch (error) {
+      toast.error('Failed to update reviewer chain');
+    } finally {
+      setSavingReviewers(false);
+    }
+  };
 
   // Update form state when project prop changes (for edit mode)
   useEffect(() => {
@@ -147,7 +255,7 @@ export const ProjectForm = ({ project, onSubmit, onCancel, isSubmitting }) => {
   };
 
   // Handle form submission
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
 
     if (!validate()) {
@@ -165,6 +273,16 @@ export const ProjectForm = ({ project, onSubmit, onCancel, isSubmitting }) => {
     // Only include owner_id in edit mode or if specified
     if (isEditMode && formData.owner_id) {
       submitData.owner_id = formData.owner_id;
+    }
+
+    // For create mode, pass the reviewer chain as well
+    if (!isEditMode && reviewerChain.length > 0) {
+      submitData.reviewer_chain = reviewerChain
+        .filter(r => r.user_id) // Only include reviewers with selected users
+        .map(r => ({
+          user_id: r.user_id,
+          review_level: r.review_level
+        }));
     }
 
     onSubmit(submitData);
@@ -210,6 +328,153 @@ export const ProjectForm = ({ project, onSubmit, onCancel, isSubmitting }) => {
             </p>
           </div>
         )}
+
+        {/* Multi-Level Reviewer Chain (Available in both Create and Edit modes) */}
+        <div className="border border-gray-200 rounded-lg p-4 bg-gray-50">
+          <div className="flex items-center justify-between mb-4">
+            <h4 className="text-sm font-medium text-gray-900">
+              Reviewer Chain (Multi-Level Review)
+            </h4>
+            <button
+              type="button"
+              onClick={handleAddReviewerToChain}
+              disabled={isSubmitting || loadingReviewers}
+              className="flex items-center gap-1 px-3 py-1.5 text-sm bg-primary-600 text-white rounded-md hover:bg-primary-700 disabled:opacity-50"
+            >
+              <Plus className="w-4 h-4" />
+              Add Level
+            </button>
+          </div>
+          
+          {loadingReviewers && isEditMode ? (
+            <div className="flex items-center justify-center py-8">
+              <LoadingSpinner size="sm" />
+              <span className="ml-2 text-sm text-gray-500">Loading reviewers...</span>
+            </div>
+          ) : reviewerChain.length === 0 ? (
+            <div className="text-center py-8">
+              <AlertCircle className="w-8 h-8 text-gray-400 mx-auto mb-2" />
+              <p className="text-sm text-gray-500">No reviewers assigned yet.</p>
+              <p className="text-xs text-gray-400">Click "Add Level" to create a review chain.</p>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {reviewerChain.map((reviewer, index) => (
+                <div
+                  key={index}
+                  className="flex items-center gap-2 p-3 bg-white border border-gray-200 rounded-lg"
+                >
+                  {/* Level Badge */}
+                  <div className="flex-shrink-0 w-8 h-8 bg-indigo-100 text-indigo-700 rounded-full flex items-center justify-center text-sm font-bold">
+                    {reviewer.review_level}
+                  </div>
+                  
+                  {/* Grip Handle */}
+                  <GripVertical className="w-4 h-4 text-gray-400 cursor-grab" />
+                  
+                  {/* User Dropdown */}
+                  <select
+                    value={reviewer.user_id || ''}
+                    onChange={(e) => handleUpdateReviewerInChain(index, e.target.value)}
+                    className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary-500 focus:border-transparent text-sm"
+                    disabled={isSubmitting}
+                  >
+                    <option value="">Select a reviewer...</option>
+                    {availableReviewers
+                      .filter(u => {
+                        // Allow if user is already selected for this slot
+                        if (u.id === reviewer.user_id) return true;
+                        // Exclude users already assigned to other levels
+                        const assignedIds = reviewerChain
+                          .filter((_, i) => i !== index)
+                          .map(r => r.user_id);
+                        return !assignedIds.includes(u.id);
+                      })
+                      .map(user => (
+                        <option key={user.id} value={user.id}>
+                          {user.full_name} ({user.role})
+                        </option>
+                      ))}
+                  </select>
+                  
+                  {/* Up/Down Buttons */}
+                  <div className="flex items-center gap-1">
+                    <button
+                      type="button"
+                      onClick={() => handleMoveReviewerUp(index)}
+                      disabled={index === 0 || isSubmitting}
+                      className="p-1 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded disabled:opacity-30 disabled:cursor-not-allowed"
+                      title="Move up"
+                    >
+                      <ChevronUp className="w-4 h-4" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleMoveReviewerDown(index)}
+                      disabled={index === reviewerChain.length - 1 || isSubmitting}
+                      className="p-1 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded disabled:opacity-30 disabled:cursor-not-allowed"
+                      title="Move down"
+                    >
+                      <ChevronDown className="w-4 h-4" />
+                    </button>
+                  </div>
+                  
+                  {/* Remove Button */}
+                  <button
+                    type="button"
+                    onClick={() => handleRemoveReviewerFromChain(index)}
+                    disabled={isSubmitting}
+                    className="p-1 text-red-500 hover:text-red-700 hover:bg-red-50 rounded disabled:opacity-30"
+                    title="Remove"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
+              ))}
+              
+              {/* Save Button (only in edit mode) */}
+              {isEditMode && (
+                <div className="flex items-center justify-end gap-2 pt-2">
+                  <p className="text-xs text-gray-500 flex-1">
+                    <Info className="w-3 h-3 inline mr-1" />
+                    Reviewers will review in order: Level 1 → Level 2 → ... → Final Approval
+                  </p>
+                  <button
+                    type="button"
+                    onClick={handleSaveReviewerChain}
+                    disabled={savingReviewers || reviewerChain.some(r => !r.user_id)}
+                    className="px-4 py-2 bg-green-600 text-white text-sm rounded-md hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                  >
+                    {savingReviewers ? (
+                      <>
+                        <LoadingSpinner size="sm" />
+                        Saving...
+                      </>
+                    ) : (
+                      'Save Reviewer Chain'
+                    )}
+                  </button>
+                </div>
+              )}
+              
+              {/* Info for create mode */}
+              {!isEditMode && (
+                <p className="text-xs text-gray-500 pt-2">
+                  <Info className="w-3 h-3 inline mr-1" />
+                  Reviewers will be assigned after project creation. They will review in order: Level 1 → Level 2 → ... → Final Approval
+                </p>
+              )}
+            </div>
+          )}
+          
+          {/* Info Box */}
+          <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+            <p className="text-xs text-blue-800">
+              <strong>How it works:</strong> When an annotator submits work, it goes to Level 1 reviewer first. 
+              After approval, it moves to Level 2, and so on. If any reviewer rejects, the work goes back to the previous level (or annotator if at Level 1).
+            </p>
+          </div>
+        </div>
 
         {/* Project Name */}
         <div>
@@ -300,6 +565,51 @@ export const ProjectForm = ({ project, onSubmit, onCancel, isSubmitting }) => {
           ))}
         </select>
       </div>
+
+      {/* Resource Provider Setting - Show when annotation type is selected */}
+      {formData.annotation_type && (
+        <div className="border border-gray-200 rounded-lg p-4 bg-amber-50">
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Who will provide the annotation resources?
+          </label>
+          <div className="space-y-2">
+            <label className="flex items-start gap-3 p-3 bg-white border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50">
+              <input
+                type="radio"
+                name="resource_provider"
+                value="annotator"
+                checked={(formData.config.resource_provider || 'annotator') === 'annotator'}
+                onChange={() => handleConfigChange('resource_provider', 'annotator')}
+                className="mt-1 text-primary-600 focus:ring-primary-500"
+                disabled={isSubmitting}
+              />
+              <div>
+                <span className="text-sm font-medium text-gray-900">Annotators upload their own</span>
+                <p className="text-xs text-gray-500">Each annotator uploads their own files (text/images) to annotate</p>
+              </div>
+            </label>
+            <label className="flex items-start gap-3 p-3 bg-white border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50">
+              <input
+                type="radio"
+                name="resource_provider"
+                value="project_manager"
+                checked={formData.config.resource_provider === 'project_manager'}
+                onChange={() => handleConfigChange('resource_provider', 'project_manager')}
+                className="mt-1 text-primary-600 focus:ring-primary-500"
+                disabled={isSubmitting}
+              />
+              <div>
+                <span className="text-sm font-medium text-gray-900">Project Manager provides resources</span>
+                <p className="text-xs text-gray-500">PM uploads resources to a shared pool. Annotators work from the pool (one at a time)</p>
+              </div>
+            </label>
+          </div>
+          <p className="mt-2 text-xs text-amber-700">
+            <Info className="w-3 h-3 inline mr-1" />
+            This setting cannot be changed after resources are added to the project
+          </p>
+        </div>
+      )}
 
       {/* Dynamic Fields Based on Annotation Type */}
       {formData.annotation_type && (

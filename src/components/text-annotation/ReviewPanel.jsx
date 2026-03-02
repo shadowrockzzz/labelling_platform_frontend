@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { ANNOTATION_STATUSES } from '../../features/text-annotation/constants';
-import { Plus, Eye, CheckCircle, XCircle, FileText, MessageSquare, Edit, ChevronLeft } from 'lucide-react';
+import { Plus, Eye, CheckCircle, XCircle, FileText, MessageSquare, Edit, ChevronLeft, SkipForward, Layers } from 'lucide-react';
 import { textAnnotationService } from '../../services/textAnnotationService';
 import { textResourceService } from '../../services/textResourceService';
 import toast from 'react-hot-toast';
@@ -13,8 +13,18 @@ import EditAnnotationForm from './EditAnnotationForm';
  * - Approve annotations
  * - Update & Approve (with corrections)
  * - Reject with comments
+ * - Skip and move to next annotation
  */
-const ReviewPanel = ({ projectId, annotations, onReview, loading, projectLabels }) => {
+const ReviewPanel = ({ 
+  projectId, 
+  annotations, 
+  onReview, 
+  loading, 
+  projectLabels,
+  maxReviewLevel = 1,
+  currentReviewLevel = 1,
+  currentReviewerName = null
+}) => {
   const [selectedAnnotation, setSelectedAnnotation] = useState(null);
   const [resourceContent, setResourceContent] = useState(null);
   const [loadingResource, setLoadingResource] = useState(false);
@@ -26,6 +36,7 @@ const ReviewPanel = ({ projectId, annotations, onReview, loading, projectLabels 
   const [isCreatingCorrection, setIsCreatingCorrection] = useState(false);
   const [showCorrectionHistory, setShowCorrectionHistory] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isSkipping, setIsSkipping] = useState(false);
 
   // Load submitted annotations for review
   const [submittedAnnotations, setSubmittedAnnotations] = useState([]);
@@ -163,6 +174,22 @@ const ReviewPanel = ({ projectId, annotations, onReview, loading, projectLabels 
   const handleUpdateAndApprove = async () => {
     // Open the correction form
     setShowCorrectionForm(true);
+  };
+
+  const handleSkipReview = async () => {
+    if (!selectedAnnotation || !projectId) return;
+    
+    setIsSkipping(true);
+    try {
+      await textResourceService.skipReviewAnnotation(projectId, selectedAnnotation.id);
+      toast.success('Skipped annotation');
+      handleBackToList();
+    } catch (error) {
+      console.error('Failed to skip annotation:', error);
+      toast.error('Failed to skip annotation');
+    } finally {
+      setIsSkipping(false);
+    }
   };
 
   // Use submittedAnnotations if annotations prop is empty
@@ -425,9 +452,57 @@ const ReviewPanel = ({ projectId, annotations, onReview, loading, projectLabels 
             )}
           </div>
 
+          {/* Review Level Info */}
+          {maxReviewLevel > 1 && (
+            <div className="bg-indigo-50 rounded-lg shadow-md p-4 border border-indigo-200">
+              <div className="flex items-center space-x-2 mb-2">
+                <Layers className="w-5 h-5 text-indigo-600" />
+                <span className="text-sm font-semibold text-indigo-800">Review Chain</span>
+              </div>
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-indigo-700">
+                  Level <span className="font-bold">{currentReviewLevel}</span> of <span className="font-bold">{maxReviewLevel}</span>
+                </span>
+                {currentReviewerName && (
+                  <span className="text-gray-600">
+                    Currently with: <span className="font-medium">{currentReviewerName}</span>
+                  </span>
+                )}
+              </div>
+              <div className="mt-2 flex items-center space-x-1">
+                {Array.from({ length: maxReviewLevel }, (_, i) => i + 1).map((level) => (
+                  <div
+                    key={level}
+                    className={`h-2 flex-1 rounded ${
+                      level < currentReviewLevel
+                        ? 'bg-green-500'
+                        : level === currentReviewLevel
+                        ? 'bg-indigo-500'
+                        : 'bg-gray-300'
+                    }`}
+                  />
+                ))}
+              </div>
+            </div>
+          )}
+
           {/* Action Buttons */}
           <div className="bg-white rounded-lg shadow-md p-6">
             <div className="space-y-3">
+              {/* Skip Button */}
+              <button
+                onClick={handleSkipReview}
+                disabled={isSkipping || loading}
+                className={`w-full px-4 py-3 rounded-md text-white font-medium transition-colors flex items-center justify-center space-x-2 ${
+                  isSkipping || loading
+                    ? 'bg-gray-400 cursor-not-allowed'
+                    : 'bg-gray-500 hover:bg-gray-600'
+                }`}
+              >
+                <SkipForward size={18} />
+                <span>{isSkipping ? 'Skipping...' : 'Skip & Next'}</span>
+              </button>
+
               {/* Approve Button */}
               <button
                 onClick={handleApprove}

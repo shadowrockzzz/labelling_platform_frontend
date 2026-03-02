@@ -25,4 +25,10 @@ export const projectService = {
     const response = await api.delete(`/projects/${id}`);
     return response.data;
   },
+
+  // Update project manager (admin only)
+  async updateProjectManager(projectId, userId) {
+    const response = await api.put(`/projects/${projectId}/manager`, { user_id: userId });
+    return response.data.data;
+  },
 };

@@ -4,6 +4,22 @@ All notable changes to the Labelling Platform frontend will be documented in thi
 
 ---
 
+## [2026.03.02] - March 2, 2026
+
+### Bug Fixes
+
+#### Image Annotation
+- **Fixed:** Unable to add shapes (bounding box, polygon, etc.) in image annotation
+  - Issue was caused by missing database columns on the backend
+  - Frontend was correctly sending requests, but backend returned 500 error
+  - Fixed by backend migration `migration_add_review_lock_columns.py`
+
+#### Text Annotation
+- **Fixed:** Text annotation would have similar issues due to same database column missing
+  - Backend migration fixed both `image_annotations` and `text_annotations` tables
+
+---
+
 ## [Unreleased]
 
 ### Added
@@ -153,7 +169,7 @@ All notable changes to the Labelling Platform frontend will be documented in thi
 | ProtectedRoute | 2025.12 | 2026.02 |
 | TextAnnotationWorkspace | 2025.12 | 2026.01 |
 | TextAnnotationEditor | 2025.12 | 2026.02 |
-| ImageAnnotationWorkspace | 2026.01 | 2026.02 |
+| ImageAnnotationWorkspace | 2026.01 | 2026.03.02 |
 | ImageCanvas | 2026.01 | 2026.02 |
 | BoundingBoxShape | 2026.01 | 2026.02 |
 | ReviewPanel | 2026.01 | 2026.02 |
@@ -164,6 +180,7 @@ All notable changes to the Labelling Platform frontend will be documented in thi
 
 | Version | Date | Description |
 |---------|------|-------------|
+| 2026.03.02 | Mar 2, 2026 | Bug fix for image annotation shapes |
 | 2026.02 | Feb 2026 | Bug fixes and stability |
 | 2026.01 | Jan 2026 | Image annotation, custom labels |
 | 2025.12 | Dec 2025 | Initial release |
