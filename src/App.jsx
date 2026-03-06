@@ -11,6 +11,7 @@ import { UserManagement } from './pages/UserManagement.jsx';
 import { ProjectList } from './pages/ProjectList.jsx';
 import { ProjectDetail } from './pages/ProjectDetail.jsx';
 import { Profile } from './pages/Profile.jsx';
+import AnnotationTaskPage from './pages/AnnotationTaskPage';
 
 // Components
 import { Layout } from './components/layout/Layout.jsx';
@@ -75,6 +76,7 @@ function App() {
             {/* Projects routes */}
             <Route path="projects" element={<ProjectList />} />
             <Route path="projects/:id" element={<ProjectDetail />} />
+            <Route path="projects/:projectId/tasks" element={<AnnotationTaskPage />} />
             
             {/* Profile */}
             <Route path="profile" element={<Profile />} />

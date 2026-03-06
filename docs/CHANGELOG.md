@@ -4,6 +4,19 @@ All notable changes to the Labelling Platform frontend will be documented in thi
 
 ---
 
+## [2026.03.06] - March 6, 2026
+
+### Bug Fixes
+
+#### Resource Pool Lock Synchronization (Backend Fix)
+- **Fixed:** Lock not being re-acquired after admin releases it
+  - Backend fix that synchronizes `annotation_tasks` and resource `pool_status` tables
+  - When admin releases a lock via Resource Pool UI, both the resource and the annotation task are now properly released
+  - Annotators can now successfully reclaim resources after locks are released by admins
+  - No frontend changes required - fix was in backend API endpoints
+
+---
+
 ## [2026.03.02] - March 2, 2026
 
 ### Bug Fixes

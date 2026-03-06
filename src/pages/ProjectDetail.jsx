@@ -66,6 +66,7 @@ export const ProjectDetail = () => {
   
   const canEdit = currentUser.role === 'admin' || currentUser.role === 'project_manager';
   const isPMProvided = project?.config?.resource_provider === 'project_manager';
+  const isAnnotator = currentUser.role === 'annotator';
 
   const fetchProject = async () => {
     try {
@@ -314,16 +315,19 @@ export const ProjectDetail = () => {
           >
             Overview
           </button>
-          <button
-            onClick={() => setActiveTab('annotations')}
-            className={`pb-4 border-b-2 font-medium transition-colors ${
-              activeTab === 'annotations'
-                ? 'border-primary-600 text-primary-600'
-                : 'border-transparent text-gray-600 hover:text-gray-900'
-            }`}
-          >
-            Annotations
-          </button>
+          {/* Annotations tab - hidden for annotators (they use task-based workflow) */}
+          {!isAnnotator && (
+            <button
+              onClick={() => setActiveTab('annotations')}
+              className={`pb-4 border-b-2 font-medium transition-colors ${
+                activeTab === 'annotations'
+                  ? 'border-primary-600 text-primary-600'
+                  : 'border-transparent text-gray-600 hover:text-gray-900'
+              }`}
+            >
+              Annotations
+            </button>
+          )}
           <button
             onClick={() => setActiveTab('team')}
             className={`pb-4 border-b-2 font-medium transition-colors ${
@@ -365,6 +369,40 @@ export const ProjectDetail = () => {
       {/* Overview Tab */}
       {activeTab === 'overview' && (
         <div className="space-y-6">
+          {/* Task Queue Quick Access - Show for all modes */}
+          <div className={`card bg-gradient-to-r ${isPMProvided ? 'from-primary-50 to-indigo-50 border border-primary-200' : 'from-emerald-50 to-teal-50 border border-emerald-200'}`}>
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900 mb-1">
+                  {isPMProvided ? 'Task-Based Workflow' : 'Ready to Annotate?'}
+                </h3>
+                <p className="text-gray-600 text-sm">
+                  {isPMProvided 
+                    ? 'Resources are provided by the project manager. Click below to start annotating tasks from the queue.'
+                    : 'Upload your own resources and annotate them. Click below to get started.'}
+                </p>
+              </div>
+              {isAnnotator && (
+                <button
+                  onClick={() => navigate(`/projects/${id}/tasks`)}
+                  className={`flex items-center gap-2 px-6 py-3 ${isPMProvided ? 'bg-primary-600 hover:bg-primary-700' : 'bg-emerald-600 hover:bg-emerald-700'} text-white rounded-lg font-medium`}
+                >
+                  {isPMProvided ? (
+                    <>
+                      <FileText className="w-5 h-5" />
+                      Start Annotating
+                    </>
+                  ) : (
+                    <>
+                      <Upload className="w-5 h-5" />
+                      Upload & Annotate
+                    </>
+                  )}
+                </button>
+              )}
+            </div>
+          </div>
+
           {/* Stats Cards */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
             <div className="card">

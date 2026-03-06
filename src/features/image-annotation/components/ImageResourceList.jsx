@@ -1,11 +1,43 @@
 /**
  * ImageResourceList Component
  * 
- * Displays list of image resources for annotation.
+ * Displays list of image resources for annotation with pool status badges.
  */
 
 import React from 'react';
-import { Image, Loader2 } from 'lucide-react';
+import { Image, Loader2, Lock, CheckCircle, SkipForward, Circle } from 'lucide-react';
+
+// Helper to get pool status badge styling
+const getPoolStatusBadge = (status) => {
+  const statusConfig = {
+    available: {
+      bg: 'bg-green-100',
+      text: 'text-green-700',
+      icon: Circle,
+      label: 'Available'
+    },
+    locked: {
+      bg: 'bg-yellow-100',
+      text: 'text-yellow-700',
+      icon: Lock,
+      label: 'Locked'
+    },
+    completed: {
+      bg: 'bg-blue-100',
+      text: 'text-blue-700',
+      icon: CheckCircle,
+      label: 'Completed'
+    },
+    skipped: {
+      bg: 'bg-gray-100',
+      text: 'text-gray-600',
+      icon: SkipForward,
+      label: 'Skipped'
+    }
+  };
+  
+  return statusConfig[status] || statusConfig.available;
+};
 
 const ImageResourceList = ({
   resources,
@@ -13,6 +45,8 @@ const ImageResourceList = ({
   onSelect,
   loading,
   showHeader = true,
+  showPoolStatus = false,
+  users = {}, // Map of user_id -> user name for locked_by display
 }) => {
   if (loading) {
     return (
@@ -43,6 +77,12 @@ const ImageResourceList = ({
       <div className="flex-1 overflow-auto p-2 space-y-2">
         {resources.map((resource) => {
           const isSelected = selectedResource?.id === resource.id;
+          const poolStatus = resource.pool_status || 'available';
+          const statusBadge = getPoolStatusBadge(poolStatus);
+          const StatusIcon = statusBadge.icon;
+          const lockedByName = resource.locked_by_user_id && users[resource.locked_by_user_id] 
+            ? users[resource.locked_by_user_id] 
+            : null;
           
           return (
             <button
@@ -55,7 +95,7 @@ const ImageResourceList = ({
               }`}
             >
               {/* Thumbnail */}
-              <div className="w-12 h-12 bg-gray-100 rounded overflow-hidden flex-shrink-0">
+              <div className="w-12 h-12 bg-gray-100 rounded overflow-hidden flex-shrink-0 relative">
                 {resource.thumbnail_url ? (
                   <img
                     src={resource.thumbnail_url}
@@ -67,6 +107,12 @@ const ImageResourceList = ({
                     <Image className="w-5 h-5 text-gray-400" />
                   </div>
                 )}
+                {/* Lock overlay for locked resources */}
+                {poolStatus === 'locked' && (
+                  <div className="absolute inset-0 bg-black/30 flex items-center justify-center">
+                    <Lock className="w-4 h-4 text-white" />
+                  </div>
+                )}
               </div>
               
               {/* Info */}
@@ -74,11 +120,26 @@ const ImageResourceList = ({
                 <p className="text-sm font-medium text-gray-900 truncate">
                   {resource.name}
                 </p>
-                <p className="text-xs text-gray-500">
-                  {resource.width && resource.height 
-                    ? `${resource.width}×${resource.height}` 
-                    : 'Unknown size'}
-                </p>
+                <div className="flex items-center gap-2">
+                  <p className="text-xs text-gray-500">
+                    {resource.width && resource.height 
+                      ? `${resource.width}×${resource.height}` 
+                      : 'Unknown size'}
+                  </p>
+                  {/* Pool status badge */}
+                  {showPoolStatus && (
+                    <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-xs ${statusBadge.bg} ${statusBadge.text}`}>
+                      <StatusIcon className="w-3 h-3" />
+                      {statusBadge.label}
+                    </span>
+                  )}
+                </div>
+                {/* Show locked by info */}
+                {showPoolStatus && poolStatus === 'locked' && lockedByName && (
+                  <p className="text-xs text-yellow-600 truncate mt-0.5">
+                    By: {lockedByName}
+                  </p>
+                )}
               </div>
             </button>
           );
