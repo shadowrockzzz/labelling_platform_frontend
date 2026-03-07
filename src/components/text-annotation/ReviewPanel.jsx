@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { ANNOTATION_STATUSES } from '../../features/text-annotation/constants';
-import { Plus, Eye, CheckCircle, XCircle, FileText, MessageSquare, Edit, ChevronLeft, SkipForward, Layers } from 'lucide-react';
+import { Plus, Eye, CheckCircle, XCircle, FileText, MessageSquare, Edit, ChevronLeft, SkipForward, Layers, Play, RefreshCw, Loader2 } from 'lucide-react';
 import { textAnnotationService } from '../../services/textAnnotationService';
 import { textResourceService } from '../../services/textResourceService';
+import reviewTaskService from '../../services/reviewTaskService';
 import toast from 'react-hot-toast';
 import EditAnnotationForm from './EditAnnotationForm';
 
@@ -14,6 +15,7 @@ import EditAnnotationForm from './EditAnnotationForm';
  * - Update & Approve (with corrections)
  * - Reject with comments
  * - Skip and move to next annotation
+ * - Start reviewing from the review pool
  */
 const ReviewPanel = ({ 
   projectId, 
@@ -23,7 +25,8 @@ const ReviewPanel = ({
   projectLabels,
   maxReviewLevel = 1,
   currentReviewLevel = 1,
-  currentReviewerName = null
+  currentReviewerName = null,
+  reviewerLevel = 1 // The current reviewer's assigned level
 }) => {
   const [selectedAnnotation, setSelectedAnnotation] = useState(null);
   const [resourceContent, setResourceContent] = useState(null);
@@ -38,23 +41,86 @@ const ReviewPanel = ({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSkipping, setIsSkipping] = useState(false);
 
+  // Review pool state
+  const [isStartingReview, setIsStartingReview] = useState(false);
+  const [currentReviewTask, setCurrentReviewTask] = useState(null);
+  const [poolStats, setPoolStats] = useState(null);
+  const [isLoadingPoolStats, setIsLoadingPoolStats] = useState(false);
+
   // Load submitted annotations for review
   const [submittedAnnotations, setSubmittedAnnotations] = useState([]);
+  const [initError, setInitError] = useState(null);
 
   useEffect(() => {
     if (projectId) {
       loadSubmittedAnnotations();
+      loadPoolStats();
     }
-  }, [projectId]);
+  }, [projectId, reviewerLevel]);
 
   const loadSubmittedAnnotations = async () => {
     try {
+      setInitError(null);
       const response = await textAnnotationService.listAnnotations(projectId, {
         status: `${ANNOTATION_STATUSES.SUBMITTED},${ANNOTATION_STATUSES.UNDER_REVIEW}`,
       });
       setSubmittedAnnotations(response.data || []);
     } catch (error) {
       console.error('Failed to load submitted annotations:', error);
+      setInitError('Failed to load annotations. Please refresh the page.');
+    }
+  };
+
+  const loadPoolStats = async () => {
+    if (!projectId) return;
+    
+    setIsLoadingPoolStats(true);
+    try {
+      const stats = await reviewTaskService.getReviewPoolStats('text', projectId, reviewerLevel);
+      setPoolStats(stats);
+    } catch (error) {
+      console.error('Failed to load pool stats:', error);
+      // Don't show error - the button should still work
+      setPoolStats({ available: 0, locked: 0 });
+    } finally {
+      setIsLoadingPoolStats(false);
+    }
+  };
+
+  const handleStartReviewing = async () => {
+    if (!projectId) return;
+    
+    setIsStartingReview(true);
+    try {
+      const taskData = await reviewTaskService.startReview('text', projectId, reviewerLevel);
+      
+      if (taskData && taskData.annotation) {
+        setSelectedAnnotation(taskData.annotation);
+        setCurrentReviewTask(taskData.review_task);
+        
+        // Load resource content for the annotation
+        if (taskData.annotation.resource_id) {
+          setLoadingResource(true);
+          try {
+            const resource = await textResourceService.getResource(projectId, taskData.annotation.resource_id);
+            setResourceContent(resource);
+          } catch (error) {
+            console.error('Failed to load resource:', error);
+            toast.error('Failed to load resource content');
+          } finally {
+            setLoadingResource(false);
+          }
+        }
+        
+        toast.success('Review task loaded successfully');
+      } else if (taskData && taskData.message) {
+        toast.info(taskData.message);
+      }
+    } catch (error) {
+      console.error('Failed to start review:', error);
+      toast.error(error.response?.data?.detail || 'Failed to get review task');
+    } finally {
+      setIsStartingReview(false);
     }
   };
 
@@ -73,8 +139,8 @@ const ReviewPanel = ({
           console.error('Failed to load corrections:', error);
         }
         
-        // Load resource content
-        if (selectedAnnotation.resource_id) {
+        // Load resource content if not already loaded
+        if (!resourceContent && selectedAnnotation.resource_id) {
           setLoadingResource(true);
           try {
             const resource = await textResourceService.getResource(projectId, selectedAnnotation.resource_id);
@@ -97,6 +163,7 @@ const ReviewPanel = ({
     setReviewComment('');
     setRejectComment('');
     setResourceContent(null);
+    setCurrentReviewTask(null);
   };
 
   const handleBackToList = () => {
@@ -104,7 +171,9 @@ const ReviewPanel = ({
     setResourceContent(null);
     setReviewComment('');
     setRejectComment('');
-    loadSubmittedAnnotations(); // Refresh the list
+    setCurrentReviewTask(null);
+    loadSubmittedAnnotations();
+    loadPoolStats();
   };
 
   const handleApprove = async () => {
@@ -181,9 +250,42 @@ const ReviewPanel = ({
     
     setIsSkipping(true);
     try {
-      await textResourceService.skipReviewAnnotation(projectId, selectedAnnotation.id);
-      toast.success('Skipped annotation');
-      handleBackToList();
+      // If we have a review task from the pool, use the new skip API
+      if (currentReviewTask && currentReviewTask.id) {
+        const result = await reviewTaskService.skipReview('text', currentReviewTask.id);
+        
+        if (result && result.next_task && result.next_task.annotation) {
+          // Load the next task
+          setSelectedAnnotation(result.next_task.annotation);
+          setCurrentReviewTask(result.next_task.review_task);
+          setReviewComment('');
+          setRejectComment('');
+          setCorrections([]);
+          
+          // Load resource content
+          if (result.next_task.annotation.resource_id) {
+            setLoadingResource(true);
+            try {
+              const resource = await textResourceService.getResource(projectId, result.next_task.annotation.resource_id);
+              setResourceContent(resource);
+            } catch (error) {
+              console.error('Failed to load resource:', error);
+            } finally {
+              setLoadingResource(false);
+            }
+          }
+          
+          toast.success('Skipped. Loaded next review task.');
+        } else {
+          toast.success('Skipped annotation. No more tasks available.');
+          handleBackToList();
+        }
+      } else {
+        // Legacy skip
+        await textResourceService.skipReviewAnnotation(projectId, selectedAnnotation.id);
+        toast.success('Skipped annotation');
+        handleBackToList();
+      }
     } catch (error) {
       console.error('Failed to skip annotation:', error);
       toast.error('Failed to skip annotation');
@@ -201,64 +303,134 @@ const ReviewPanel = ({
 
   if (!selectedAnnotation) {
     return (
-      <div className="bg-white rounded-lg shadow-md p-6">
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="text-lg font-semibold text-gray-900">Review Queue</h3>
-          <span className="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm font-medium">
-            {pendingReview.length} pending
-          </span>
+      <div className="space-y-6">
+        {/* DEBUG: Component loaded successfully */}
+        <div className="bg-green-100 border-2 border-green-500 rounded-lg p-2 text-green-800 text-sm">
+          ✓ ReviewPanel loaded. Your level: {reviewerLevel} | Project ID: {projectId}
         </div>
         
-        {pendingReview.length === 0 ? (
-          <div className="text-center py-12">
-            <CheckCircle className="w-12 h-12 text-green-400 mx-auto mb-4" />
-            <p className="text-gray-500 text-lg">All caught up!</p>
-            <p className="text-gray-400 text-sm mt-1">No annotations pending review</p>
+        {/* PROMINENT START REVIEWING BUTTON - ALWAYS VISIBLE AT TOP */}
+        <div className="bg-gradient-to-r from-blue-600 to-indigo-600 rounded-xl shadow-lg p-6 text-white">
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+            <div>
+              <h3 className="text-xl font-bold mb-2 flex items-center gap-2">
+                <Play className="w-6 h-6" />
+                Ready to Review?
+              </h3>
+              <p className="text-blue-100">
+                {poolStats ? (
+                  <>
+                    <span className="font-bold text-white">{poolStats.available || 0}</span> tasks waiting at Level {reviewerLevel}
+                    {poolStats.locked > 0 && (
+                      <span className="ml-2">• <span className="font-bold text-white">{poolStats.locked}</span> in progress</span>
+                    )}
+                  </>
+                ) : (
+                  'Loading pool statistics...'
+                )}
+              </p>
+            </div>
+            <button
+              onClick={handleStartReviewing}
+              disabled={isStartingReview}
+              className={`flex items-center justify-center gap-3 px-8 py-4 rounded-xl font-bold text-lg transition-all ${
+                isStartingReview
+                  ? 'bg-gray-400 cursor-not-allowed'
+                  : 'bg-white text-blue-600 hover:bg-blue-50 shadow-xl hover:shadow-2xl transform hover:scale-105'
+              }`}
+            >
+              {isStartingReview ? (
+                <>
+                  <Loader2 className="w-6 h-6 animate-spin" />
+                  <span>Loading Task...</span>
+                </>
+              ) : (
+                <>
+                  <Play className="w-6 h-6" />
+                  <span>START REVIEWING</span>
+                </>
+              )}
+            </button>
           </div>
-        ) : (
-          <div className="space-y-3">
-            {pendingReview.map((annotation) => (
-              <div
-                key={annotation.id}
-                className="border border-gray-200 rounded-lg p-4 hover:shadow-md hover:border-blue-300 transition-all cursor-pointer"
-                onClick={() => handleSelectAnnotation(annotation)}
-              >
-                <div className="flex items-center justify-between">
-                  <div className="flex-1">
-                    <div className="flex items-center space-x-3 mb-2">
-                      <span className="px-2 py-1 text-xs font-semibold rounded bg-blue-100 text-blue-800">
-                        SUBMITTED
-                      </span>
-                      <span className="text-sm text-gray-600">
-                        Annotation #{annotation.id}
-                      </span>
-                    </div>
-                    <div className="flex items-center space-x-4 text-sm text-gray-500">
-                      <span className="flex items-center">
-                        <FileText className="w-4 h-4 mr-1" />
-                        Resource #{annotation.resource_id}
-                      </span>
-                      {annotation.label && (
-                        <span>Label: {annotation.label}</span>
+        </div>
+
+        {/* Review Queue List */}
+        <div className="bg-white rounded-lg shadow-md p-6">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-lg font-semibold text-gray-900">Review Queue</h3>
+            <span className="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm font-medium">
+              {pendingReview.length} pending
+            </span>
+          </div>
+        
+          {/* Manual selection list */}
+          <div className="flex items-center justify-between mb-3">
+            <h4 className="text-sm font-medium text-gray-700">Or select from queue:</h4>
+            <button
+              onClick={() => { loadSubmittedAnnotations(); loadPoolStats(); }}
+              className="text-sm text-blue-600 hover:text-blue-800 flex items-center space-x-1"
+            >
+              <RefreshCw className="w-4 h-4" />
+              <span>Refresh</span>
+            </button>
+          </div>
+          
+          {pendingReview.length === 0 ? (
+            <div className="text-center py-12">
+              <CheckCircle className="w-12 h-12 text-green-400 mx-auto mb-4" />
+              <p className="text-gray-500 text-lg">All caught up!</p>
+              <p className="text-gray-400 text-sm mt-1">No annotations pending review</p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {pendingReview.map((annotation) => (
+                <div
+                  key={annotation.id}
+                  className="border border-gray-200 rounded-lg p-4 hover:shadow-md hover:border-blue-300 transition-all cursor-pointer"
+                  onClick={() => handleSelectAnnotation(annotation)}
+                >
+                  <div className="flex items-center justify-between">
+                    <div className="flex-1">
+                      <div className="flex items-center space-x-3 mb-2">
+                        <span className="px-2 py-1 text-xs font-semibold rounded bg-blue-100 text-blue-800">
+                          {annotation.status}
+                        </span>
+                        <span className="text-sm text-gray-600">
+                          Annotation #{annotation.id}
+                        </span>
+                        {annotation.current_review_level && (
+                          <span className="px-2 py-1 text-xs font-semibold rounded bg-purple-100 text-purple-800">
+                            Level {annotation.current_review_level}
+                          </span>
+                        )}
+                      </div>
+                      <div className="flex items-center space-x-4 text-sm text-gray-500">
+                        <span className="flex items-center">
+                          <FileText className="w-4 h-4 mr-1" />
+                          Resource #{annotation.resource_id}
+                        </span>
+                        {annotation.label && (
+                          <span>Label: {annotation.label}</span>
+                        )}
+                      </div>
+                      {annotation.annotator && (
+                        <p className="text-sm text-gray-500 mt-1">
+                          By: {annotation.annotator.full_name || annotation.annotator.email}
+                        </p>
                       )}
                     </div>
-                    {annotation.annotator && (
-                      <p className="text-sm text-gray-500 mt-1">
-                        By: {annotation.annotator.full_name || annotation.annotator.email}
-                      </p>
-                    )}
-                  </div>
-                  <div className="text-right">
-                    <span className="text-sm text-gray-500">
-                      {new Date(annotation.updated_at).toLocaleDateString()}
-                    </span>
-                    <ChevronLeft className="w-5 h-5 text-gray-400 mt-2" />
+                    <div className="text-right">
+                      <span className="text-sm text-gray-500">
+                        {new Date(annotation.updated_at).toLocaleDateString()}
+                      </span>
+                      <ChevronLeft className="w-5 h-5 text-gray-400 mt-2" />
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))}
-          </div>
-        )}
+              ))}
+            </div>
+          )}
+        </div>
       </div>
     );
   }
@@ -279,9 +451,16 @@ const ReviewPanel = ({
               Reviewing Annotation #{selectedAnnotation.id}
             </h3>
           </div>
-          <span className="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm font-medium">
-            {selectedAnnotation.status}
-          </span>
+          <div className="flex items-center space-x-2">
+            {selectedAnnotation.current_review_level && (
+              <span className="px-3 py-1 bg-purple-100 text-purple-800 rounded-full text-sm font-medium">
+                Level {selectedAnnotation.current_review_level}
+              </span>
+            )}
+            <span className="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm font-medium">
+              {selectedAnnotation.status}
+            </span>
+          </div>
         </div>
       </div>
 

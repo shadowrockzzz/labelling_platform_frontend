@@ -465,18 +465,30 @@ export const ProjectDetail = () => {
 
       {/* Annotations Tab */}
       {activeTab === 'annotations' && (
-        project.annotation_type === 'image' ? (
-          <ImageAnnotationWorkspace 
-            project={project}
-            userRole={currentUser?.role}
-          />
-        ) : (
-          <TextAnnotationWorkspace 
-            projectId={id} 
-            userRole={currentUser?.role}
-            project={project}
-          />
-        )
+        <>
+          {/* DEBUG BANNER */}
+          <div className="bg-yellow-100 border-2 border-yellow-500 rounded-lg p-4 mb-4">
+            <p className="font-bold text-yellow-800">DEBUG: Annotations Tab Active</p>
+            <p className="text-sm text-yellow-700">
+              annotation_type: {project.annotation_type} | 
+              userRole: {currentUser?.role} | 
+              projectId: {id}
+            </p>
+          </div>
+          
+          {project.annotation_type === 'image' ? (
+            <ImageAnnotationWorkspace 
+              project={project}
+              userRole={currentUser?.role}
+            />
+          ) : (
+            <TextAnnotationWorkspace 
+              projectId={id} 
+              userRole={currentUser?.role}
+              project={project}
+            />
+          )}
+        </>
       )}
 
       {/* Helper function to group reviewers by level */}

@@ -826,8 +826,8 @@ const ImageAnnotationWorkspace = ({ project, userRole = 'annotator' }) => {
       {/* Review Queue Tab Content */}
       {activeTab === 'review' && canReview && (
         <div className="flex flex-1 overflow-hidden">
-          {/* Left Toolbar - Show when in edit mode */}
-          {editMode && (
+          {/* Left Toolbar - Show when in edit mode and actively reviewing */}
+          {editMode && selectedResource && (
             <AnnotationToolbar
               activeTool={activeTool}
               onToolChange={setActiveTool}
@@ -845,49 +845,76 @@ const ImageAnnotationWorkspace = ({ project, userRole = 'annotator' }) => {
             />
           )}
           
-          {/* Left: Pending Review List */}
-          <div className="w-80 bg-white border-r border-gray-200 flex flex-col">
-            <div className="px-4 py-3 border-b border-gray-200">
-              <h3 className="text-sm font-medium text-gray-700">Pending Review ({pendingReviews.length})</h3>
-            </div>
-            <div className="flex-1 overflow-auto">
-              {loadingPending ? (
-                <div className="p-4 text-center text-gray-500">Loading...</div>
-              ) : pendingReviews.length === 0 ? (
-                <div className="p-4 text-center text-gray-500">
-                  <CheckCircle className="w-8 h-8 text-green-400 mx-auto mb-2" />
-                  <p>No pending reviews</p>
+          {/* Left: Current Review Info - Only show when actively reviewing */}
+          {selectedResource && (
+            <div className="w-80 bg-white border-r border-gray-200 flex flex-col">
+              <div className="px-4 py-3 border-b border-gray-200 bg-blue-50">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-sm font-medium text-blue-900">Current Review</h3>
+                  <span className="px-2 py-0.5 text-xs rounded-full bg-blue-200 text-blue-800">
+                    {pendingReviews.length} remaining
+                  </span>
                 </div>
-              ) : (
-                <div className="divide-y divide-gray-100">
-                  {pendingReviews.map((pending) => (
-                    <div
-                      key={pending.id}
-                      onClick={() => {
-                        loadAnnotationById(pending.id);
-                        setEditMode(false);
-                      }}
-                      className={`p-4 cursor-pointer hover:bg-blue-50 transition-colors ${
-                        selectedPendingAnnotation === pending.id ? 'bg-blue-100 border-l-2 border-blue-600' : ''
-                      }`}
-                    >
-                      <div className="flex items-center justify-between mb-1">
-                        <p className="text-sm font-medium text-gray-900 truncate">
-                          {pending.resource?.name || `Resource #${pending.resource_id}`}
-                        </p>
-                        <span className="ml-2 px-2 py-0.5 text-xs rounded-full bg-blue-100 text-blue-700">
-                          {pending.status}
-                        </span>
-                      </div>
-                      <p className="text-xs text-gray-500">
-                        by {pending.annotator?.full_name || pending.annotator?.email || 'Unknown'}
-                      </p>
-                    </div>
-                  ))}
+              </div>
+              
+              {/* Current annotation info */}
+              <div className="p-4 border-b border-gray-200">
+                <div className="space-y-3">
+                  <div>
+                    <p className="text-xs text-gray-500 uppercase">Task ID</p>
+                    <p className="text-sm font-mono text-gray-900">#{annotation?.id || '—'}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-gray-500 uppercase">Resource</p>
+                    <p className="text-sm text-gray-900">{selectedResource?.name || '—'}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-gray-500 uppercase">Annotator</p>
+                    <p className="text-sm text-gray-900">
+                      {annotation?.annotator?.full_name || annotation?.annotator?.email || 'Unknown'}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-gray-500 uppercase">Status</p>
+                    <span className="inline-flex px-2 py-1 text-xs rounded-full bg-blue-100 text-blue-700">
+                      {annotation?.status || '—'}
+                    </span>
+                  </div>
                 </div>
-              )}
+              </div>
+              
+              {/* Shape count */}
+              <div className="p-4 border-b border-gray-200">
+                <p className="text-xs text-gray-500 uppercase mb-2">Annotations</p>
+                <p className="text-lg font-semibold text-gray-900">{shapes.length} shapes</p>
+              </div>
+              
+              {/* Skip button */}
+              <div className="p-4 mt-auto">
+                <button
+                  onClick={() => {
+                    // Release current and load next
+                    setSelectedResource(null);
+                    setAnnotation(null);
+                    setShapes([]);
+                    setSelectedPendingAnnotation(null);
+                    setEditMode(false);
+                    // Automatically load next if available
+                    if (pendingReviews.length > 1) {
+                      const nextReview = pendingReviews.find(r => r.id !== selectedPendingAnnotation);
+                      if (nextReview) {
+                        setTimeout(() => loadAnnotationById(nextReview.id), 100);
+                      }
+                    }
+                  }}
+                  className="w-full px-4 py-2 text-sm text-gray-600 bg-gray-100 rounded-lg hover:bg-gray-200 flex items-center justify-center gap-2"
+                >
+                  <Clock className="w-4 h-4" />
+                  Skip & Get Next
+                </button>
+              </div>
             </div>
-          </div>
+          )}
 
           {/* Right: Review Canvas & Actions */}
           <div className="flex-1 flex flex-col">
@@ -945,7 +972,7 @@ const ImageAnnotationWorkspace = ({ project, userRole = 'annotator' }) => {
               )}
             </div>
 
-            {/* Canvas */}
+            {/* Canvas or START REVIEWING CTA */}
             <div className="flex-1 flex items-center justify-center p-4 overflow-hidden">
               {selectedResource ? (
                 <ImageCanvas
@@ -965,8 +992,47 @@ const ImageAnnotationWorkspace = ({ project, userRole = 'annotator' }) => {
                   brushSize={brushSize}
                 />
               ) : (
-                <div className="text-center text-gray-500">
-                  <p className="text-lg">Select an annotation from the list to review</p>
+                <div className="text-center">
+                  {/* DEBUG BANNER */}
+                  <div className="bg-yellow-100 border-2 border-yellow-500 rounded-lg p-4 mb-6">
+                    <p className="font-bold text-yellow-800">DEBUG: Review Queue Tab Active</p>
+                    <p className="text-sm text-yellow-700">
+                      pendingReviews: {pendingReviews.length} | 
+                      loadingPending: {loadingPending.toString()} |
+                      userRole: {userRole}
+                    </p>
+                  </div>
+                  
+                  {pendingReviews.length > 0 ? (
+                    <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border-2 border-blue-300 rounded-xl p-8 max-w-md mx-auto">
+                      <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <Eye className="w-8 h-8 text-blue-600" />
+                      </div>
+                      <h3 className="text-xl font-bold text-gray-900 mb-2">
+                        {pendingReviews.length} Annotation{pendingReviews.length !== 1 ? 's' : ''} Waiting for Review
+                      </h3>
+                      <p className="text-gray-600 mb-6">
+                        Click the button below to start reviewing submitted annotations.
+                      </p>
+                      <button
+                        onClick={() => {
+                          if (pendingReviews.length > 0) {
+                            loadAnnotationById(pendingReviews[0].id);
+                            setEditMode(false);
+                          }
+                        }}
+                        className="px-8 py-4 bg-blue-600 text-white text-lg font-bold rounded-lg hover:bg-blue-700 transition-colors shadow-lg"
+                      >
+                        🚀 START REVIEWING
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="text-gray-500">
+                      <CheckCircle className="w-16 h-16 text-green-400 mx-auto mb-4" />
+                      <p className="text-xl">All caught up!</p>
+                      <p className="text-sm mt-2">No pending reviews at the moment.</p>
+                    </div>
+                  )}
                 </div>
               )}
             </div>

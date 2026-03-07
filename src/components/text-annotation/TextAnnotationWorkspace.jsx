@@ -13,6 +13,14 @@ import AllAnnotationsDashboard from './AllAnnotationsDashboard';
 import { ANNOTATION_STATUSES } from '../../features/text-annotation/constants';
 
 const TextAnnotationWorkspace = ({ projectId, userRole, project }) => {
+  // DEBUG: Log to verify component is rendering
+  console.log('=== TextAnnotationWorkspace DEBUG ===');
+  console.log('projectId:', projectId);
+  console.log('userRole:', userRole);
+  console.log('normalizedRole:', userRole ? userRole.toUpperCase() : '');
+  console.log('canReview:', ['ADMIN', 'PROJECT_MANAGER', 'REVIEWER'].includes(userRole ? userRole.toUpperCase() : ''));
+  console.log('====================================');
+  
   const [selectedResource, setSelectedResource] = useState(null);
   const [resourceWithContent, setResourceWithContent] = useState(null);
   const [loadingResource, setLoadingResource] = useState(false);
