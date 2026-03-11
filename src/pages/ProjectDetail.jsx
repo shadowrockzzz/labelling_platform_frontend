@@ -28,7 +28,9 @@ import { textResourceService } from '../services/textResourceService.js';
 import imageResourceService from '../services/imageResourceService.js';
 import { LoadingSpinner } from '../components/common/LoadingSpinner.jsx';
 import TextAnnotationWorkspace from '../components/text-annotation/TextAnnotationWorkspace.jsx';
+import ReviewTaskWorkspace from '../components/text-annotation/ReviewTaskWorkspace.jsx';
 import { ImageAnnotationWorkspace } from '../features/image-annotation';
+import ImageReviewTaskWorkspace from '../features/image-annotation/components/ImageReviewTaskWorkspace.jsx';
 import { ProjectForm } from '../components/projects/ProjectForm.jsx';
 import toast from 'react-hot-toast';
 
@@ -326,6 +328,20 @@ export const ProjectDetail = () => {
               }`}
             >
               Annotations
+            </button>
+          )}
+          {/* Review tab - visible for reviewers and above */}
+          {team.reviewers?.some(r => r.id === currentUser?.id) && (
+            <button
+              onClick={() => setActiveTab('review')}
+              className={`pb-4 border-b-2 font-medium transition-colors flex items-center gap-2 ${
+                activeTab === 'review'
+                  ? 'border-primary-600 text-primary-600'
+                  : 'border-transparent text-gray-600 hover:text-gray-900'
+              }`}
+            >
+              <CheckCircle className="w-4 h-4" />
+              Review
             </button>
           )}
           <button
@@ -999,6 +1015,17 @@ export const ProjectDetail = () => {
               </button>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* Review Tab - For reviewers to access the review workspace */}
+      {activeTab === 'review' && team.reviewers?.some(r => r.id === currentUser?.id) && (
+        <div className="bg-white rounded-lg shadow-lg overflow-hidden">
+          {project.annotation_type === 'image' ? (
+            <ImageReviewTaskWorkspace annotationType="image" projectId={id} />
+          ) : (
+            <ReviewTaskWorkspace annotationType="text" projectId={id} />
+          )}
         </div>
       )}
 

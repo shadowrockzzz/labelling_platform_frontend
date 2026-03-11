@@ -1,27 +1,33 @@
 /**
- * ReviewTaskWorkspace Component
+ * ImageReviewTaskWorkspace Component
  * 
- * Main workspace for reviewers to review annotations with:
+ * Main workspace for reviewers to review image annotations with:
  * - Start Review button
  * - View current review task with UUID chain
  * - Approve/Reject/Edit/Skip actions
  * - Review chain display showing all participants
- * - Full TextAnnotationEditor in edit mode
+ * - Image display with annotation overlay
  */
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { useParams } from 'react-router-dom';
-import { useAuth } from '../../contexts/AuthContext';
-import reviewTaskService, { formatReviewChain } from '../../services/reviewTaskService';
-import { LoadingSpinner } from '../common/LoadingSpinner.jsx';
-import TextAnnotationEditor from './TextAnnotationEditor';
-import { Edit, Save, Eye } from 'lucide-react';
+import { useAuth } from '../../../contexts/AuthContext';
+import reviewTaskService, { formatReviewChain } from '../../../services/reviewTaskService';
+import { LoadingSpinner } from '../../../components/common/LoadingSpinner.jsx';
+import ImageCanvas from './ImageCanvas';
+import AnnotationToolbar from './AnnotationToolbar';
+import ShapeList from './ShapeList';
+import { TOOLS, ANNOTATION_SUB_TYPES, BRUSH_DEFAULTS } from '../constants';
+import { Edit, X, Save, Eye } from 'lucide-react';
 import toast from 'react-hot-toast';
 
-const ReviewTaskWorkspace = ({ annotationType = 'text', projectId: projectIdProp, project }) => {
+const ImageReviewTaskWorkspace = ({ annotationType = 'image', projectId: projectIdProp, project }) => {
   const { projectId: routeProjectId } = useParams();
   const projectId = projectIdProp || routeProjectId;  // Use prop if provided, else route param
   const { user } = useAuth();
+  
+  // Get labels from project
+  const labels = project?.labels || [];
   
   // State
   const [loading, setLoading] = useState(false);
@@ -37,13 +43,18 @@ const ReviewTaskWorkspace = ({ annotationType = 'text', projectId: projectIdProp
   
   // Edit mode state
   const [isEditMode, setIsEditMode] = useState(false);
-  const [editedAnnotationData, setEditedAnnotationData] = useState(null);
-  const [fullResource, setFullResource] = useState(null); // Resource with full_content for editor
-  const [loadingResource, setLoadingResource] = useState(false);
-  
-  // Get project config and labels
-  const projectConfig = project?.config || {};
-  const projectLabels = project?.labels || [];
+  const [shapes, setShapes] = useState([]);
+  const [selectedShapeId, setSelectedShapeId] = useState(null);
+  const [activeTool, setActiveTool] = useState(TOOLS.SELECT);
+  const [selectedLabel, setSelectedLabel] = useState(null);
+  const [brushSize, setBrushSize] = useState(BRUSH_DEFAULTS.DEFAULT_RADIUS);
+  const [polygonUndoRedo, setPolygonUndoRedo] = useState({
+    canUndo: false,
+    canRedo: false,
+    onUndo: null,
+    onRedo: null,
+    onCancel: null,
+  });
 
   // Load pool stats on mount
   useEffect(() => {
@@ -74,7 +85,15 @@ const ReviewTaskWorkspace = ({ annotationType = 'text', projectId: projectIdProp
         setError(result.message || 'No tasks available for review');
       }
     } catch (err) {
-      setError(err.response?.data?.detail || 'Failed to start review');
+      const detail = err.response?.data?.detail;
+      if (Array.isArray(detail)) {
+        // FastAPI validation error - format the first error
+        setError(detail[0]?.msg || 'Validation error');
+      } else if (typeof detail === 'string') {
+        setError(detail);
+      } else {
+        setError('Failed to start review');
+      }
     } finally {
       setLoading(false);
     }
@@ -152,61 +171,99 @@ const ReviewTaskWorkspace = ({ annotationType = 'text', projectId: projectIdProp
   // Format review chain for display
   const formattedChain = annotation?.review_chain ? formatReviewChain(annotation.review_chain) : [];
 
-  // Initialize edited data when annotation changes
+  // Convert backend annotation data to frontend shapes
+  const convertBackendToShapes = useCallback((annotationData) => {
+    if (!annotationData) return [];
+    
+    const shapes = [];
+    const BACKEND_TO_FRONTEND_MAP = {
+      'boxes': ANNOTATION_SUB_TYPES.BOUNDING_BOX,
+      'polygons': ANNOTATION_SUB_TYPES.POLYGON,
+      'segments': ANNOTATION_SUB_TYPES.SEGMENTATION,
+      'keypoints': ANNOTATION_SUB_TYPES.KEYPOINT,
+      'classifications': ANNOTATION_SUB_TYPES.CLASSIFICATION,
+    };
+    
+    Object.entries(BACKEND_TO_FRONTEND_MAP).forEach(([backendKey, frontendType]) => {
+      const items = annotationData[backendKey] || [];
+      items.forEach(item => {
+        const { id, type, label_id, data: nestedData, ...rest } = item;
+        const shapeData = nestedData || rest;
+        shapes.push({
+          id: item.id,
+          type: frontendType,
+          label: item.label || null,
+          data: shapeData,
+        });
+      });
+    });
+    
+    return shapes;
+  }, []);
+
+  // Initialize shapes when annotation changes
   useEffect(() => {
     if (annotation?.annotation_data) {
-      setEditedAnnotationData(JSON.parse(JSON.stringify(annotation.annotation_data)));
+      setShapes(convertBackendToShapes(annotation.annotation_data));
     }
-    // Reset full resource when annotation changes
-    setFullResource(null);
-  }, [annotation]);
-  
-  // Fetch full resource content when entering edit mode
-  const fetchFullResource = async () => {
-    if (!resource?.id || !projectId) return;
-    
-    setLoadingResource(true);
-    try {
-      // Import the service dynamically to avoid circular deps
-      const { textResourceService } = await import('../../services/textResourceService');
-      const fullRes = await textResourceService.getResource(projectId, resource.id);
-      setFullResource(fullRes);
-    } catch (err) {
-      console.error('Failed to fetch full resource:', err);
-      toast.error('Failed to load resource content');
-    } finally {
-      setLoadingResource(false);
-    }
-  };
+  }, [annotation, convertBackendToShapes]);
 
   // Handle edit mode toggle
-  const handleToggleEditMode = async () => {
-    if (!isEditMode) {
-      // Entering edit mode - fetch full resource content if needed
-      if (!fullResource && resource?.id) {
-        await fetchFullResource();
-      }
-    } else {
-      // Cancel edit - reset to original
-      setEditedAnnotationData(JSON.parse(JSON.stringify(annotation?.annotation_data)));
+  const handleToggleEditMode = () => {
+    if (isEditMode) {
+      // Cancel edit - reset shapes to original
+      setShapes(convertBackendToShapes(annotation?.annotation_data));
     }
     setIsEditMode(!isEditMode);
-  };
-  
-  // Handle annotation save from TextAnnotationEditor
-  const handleEditorSave = async (data, closeEditor = false) => {
-    // The TextAnnotationEditor handles its own API calls for spans
-    // We just need to refresh the annotation data
-    if (closeEditor) {
-      // Refresh the review task to get updated annotation
-      setIsEditMode(false);
-      await handleStartReview();
-    }
+    setSelectedShapeId(null);
   };
 
-  // Handle annotation data changes in edit mode
-  const handleAnnotationDataChange = (newData) => {
-    setEditedAnnotationData(newData);
+  // Handle shape modifications in edit mode
+  const handleShapeCreate = (shape) => {
+    setShapes(prev => [...prev, shape]);
+  };
+
+  const handleShapeUpdate = (shapeId, newData) => {
+    setShapes(prev => prev.map(s => s.id === shapeId ? { ...s, data: newData } : s));
+  };
+
+  const handleShapeDelete = (shapeId) => {
+    setShapes(prev => prev.filter(s => s.id !== shapeId));
+    setSelectedShapeId(null);
+  };
+
+  // Convert frontend shapes back to backend format
+  const convertShapesToBackend = (frontendShapes) => {
+    const annotationData = {
+      boxes: [],
+      polygons: [],
+      segments: [],
+      keypoints: [],
+      classifications: []
+    };
+    
+    const FRONTEND_TO_BACKEND_MAP = {
+      [ANNOTATION_SUB_TYPES.BOUNDING_BOX]: 'boxes',
+      [ANNOTATION_SUB_TYPES.POLYGON]: 'polygons',
+      [ANNOTATION_SUB_TYPES.SEGMENTATION]: 'segments',
+      [ANNOTATION_SUB_TYPES.KEYPOINT]: 'keypoints',
+      [ANNOTATION_SUB_TYPES.CLASSIFICATION]: 'classifications',
+    };
+    
+    frontendShapes.forEach(shape => {
+      const backendKey = FRONTEND_TO_BACKEND_MAP[shape.type];
+      if (backendKey) {
+        annotationData[backendKey].push({
+          id: shape.id,
+          type: shape.type,
+          label: shape.label,
+          label_id: shape.label?.id,
+          data: shape.data
+        });
+      }
+    });
+    
+    return annotationData;
   };
 
   // Handle save edit
@@ -215,9 +272,11 @@ const ReviewTaskWorkspace = ({ annotationType = 'text', projectId: projectIdProp
     setError(null);
     
     try {
+      const annotationData = convertShapesToBackend(shapes);
+      
       const actionData = { 
         action: 'edit', 
-        annotation_data: editedAnnotationData,
+        annotation_data: annotationData,
         comment: comment || 'Reviewer edited annotation'
       };
       
@@ -241,6 +300,54 @@ const ReviewTaskWorkspace = ({ annotationType = 'text', projectId: projectIdProp
     }
   };
 
+  // Render annotation shapes on image
+  const renderAnnotationOverlay = () => {
+    if (!annotation?.annotation_data || !resource) return null;
+    
+    const { boxes = [], polygons = [], keypoints = [] } = annotation.annotation_data;
+    const shapes = [...boxes, ...polygons, ...keypoints];
+    
+    return (
+      <div className="absolute inset-0 pointer-events-none">
+        <svg className="w-full h-full" viewBox={`0 0 ${resource.width || 800} ${resource.height || 600}`}>
+          {/* Render bounding boxes */}
+          {boxes.map((box, idx) => (
+            <rect
+              key={`box-${idx}`}
+              x={box.x}
+              y={box.y}
+              width={box.width}
+              height={box.height}
+              fill="none"
+              stroke={box.color || '#00ff00'}
+              strokeWidth="2"
+            />
+          ))}
+          {/* Render polygons */}
+          {polygons.map((polygon, idx) => (
+            <polygon
+              key={`polygon-${idx}`}
+              points={polygon.points?.map(p => `${p.x},${p.y}`).join(' ')}
+              fill="none"
+              stroke={polygon.color || '#ff0000'}
+              strokeWidth="2"
+            />
+          ))}
+          {/* Render keypoints */}
+          {keypoints.map((kp, idx) => (
+            <circle
+              key={`kp-${idx}`}
+              cx={kp.x}
+              cy={kp.y}
+              r="5"
+              fill={kp.color || '#ffff00'}
+            />
+          ))}
+        </svg>
+      </div>
+    );
+  };
+
   if (loading && !reviewTask) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -253,9 +360,9 @@ const ReviewTaskWorkspace = ({ annotationType = 'text', projectId: projectIdProp
     <div className="p-6">
       {/* Header */}
       <div className="mb-6">
-        <h2 className="text-2xl font-bold text-gray-800">Review Workspace</h2>
+        <h2 className="text-2xl font-bold text-gray-800">Image Review Workspace</h2>
         <p className="text-gray-600 mt-1">
-          Review and approve annotations for this project
+          Review and approve image annotations for this project
         </p>
       </div>
 
@@ -315,7 +422,7 @@ const ReviewTaskWorkspace = ({ annotationType = 'text', projectId: projectIdProp
             {loading ? 'Starting...' : 'Start Reviewing'}
           </button>
           <p className="mt-4 text-gray-500">
-            Click to get the next available annotation for review
+            Click to get the next available image annotation for review
           </p>
         </div>
       )}
@@ -342,45 +449,91 @@ const ReviewTaskWorkspace = ({ annotationType = 'text', projectId: projectIdProp
               </div>
             </div>
 
-            {/* Resource Preview / Editor */}
+            {/* Image Preview with Annotations - Full Editor in Edit Mode */}
             {resource && (
               <div className="border-t pt-4">
                 {isEditMode ? (
-                  // Full Annotation Editor in Edit Mode
-                  <div className="space-y-4">
-                    {loadingResource ? (
-                      <div className="flex items-center justify-center py-12">
-                        <LoadingSpinner />
-                        <span className="ml-3 text-gray-600">Loading editor...</span>
+                  <div className="flex gap-4">
+                    {/* Left Toolbar in Edit Mode */}
+                    <AnnotationToolbar
+                      activeTool={activeTool}
+                      onToolChange={setActiveTool}
+                      onUndo={polygonUndoRedo.onUndo}
+                      onRedo={polygonUndoRedo.onRedo}
+                      onDelete={() => selectedShapeId && handleShapeDelete(selectedShapeId)}
+                      canUndo={polygonUndoRedo.canUndo}
+                      canRedo={polygonUndoRedo.canRedo}
+                      canDelete={!!selectedShapeId}
+                      selectedLabel={selectedLabel}
+                      labels={labels}
+                      onLabelChange={setSelectedLabel}
+                      brushSize={brushSize}
+                      onBrushSizeChange={setBrushSize}
+                    />
+                    
+                    {/* Canvas Area */}
+                    <div className="flex-1 flex flex-col">
+                      <div className="bg-gray-100 rounded-lg overflow-hidden" style={{ minHeight: '500px' }}>
+                        <ImageCanvas
+                          imageUrl={resource.image_url}
+                          shapes={shapes}
+                          selectedShapeId={selectedShapeId}
+                          activeTool={activeTool}
+                          selectedLabel={selectedLabel}
+                          onShapeCreate={handleShapeCreate}
+                          onShapeUpdate={handleShapeUpdate}
+                          onShapeDelete={handleShapeDelete}
+                          onShapeSelect={setSelectedShapeId}
+                          readOnly={false}
+                          width={resource.width || 800}
+                          height={resource.height || 600}
+                          onPolygonUndoRedoState={setPolygonUndoRedo}
+                          brushSize={brushSize}
+                        />
                       </div>
-                    ) : fullResource ? (
-                      <TextAnnotationEditor
-                        resource={fullResource}
-                        annotation={annotation}
-                        annotationSubType={projectConfig?.textSubType || 'ner'}
-                        annotations={[]}
-                        onSave={handleEditorSave}
-                        onCancel={() => setIsEditMode(false)}
-                        loading={loading}
-                        projectConfig={projectConfig}
-                        projectId={projectId}
-                      />
-                    ) : (
-                      <div className="bg-yellow-50 border border-yellow-200 p-4 rounded">
-                        <p className="text-yellow-800">Unable to load resource content for editing.</p>
+                    </div>
+                    
+                    {/* Shape List Sidebar in Edit Mode */}
+                    <div className="w-64 bg-white border-l border-gray-200">
+                      <div className="p-2 border-b border-gray-200">
+                        <h4 className="text-sm font-medium text-gray-700">Shapes ({shapes.length})</h4>
                       </div>
-                    )}
+                      <div className="max-h-96 overflow-auto">
+                        <ShapeList
+                          shapes={shapes}
+                          selectedShapeId={selectedShapeId}
+                          onSelect={setSelectedShapeId}
+                          onDelete={handleShapeDelete}
+                          readOnly={false}
+                        />
+                      </div>
+                    </div>
                   </div>
                 ) : (
-                  // View Mode - Show resource preview and annotation data
                   <>
-                    <h4 className="text-sm font-medium text-gray-700 mb-2">Resource</h4>
-                    <p className="text-gray-900">{resource.name || `Resource #${annotation.resource_id}`}</p>
-                    {resource.content_preview && (
-                      <p className="text-gray-600 text-sm mt-2 bg-gray-50 p-3 rounded">
-                        {resource.content_preview}
-                      </p>
-                    )}
+                    <h4 className="text-sm font-medium text-gray-700 mb-2">Image with Annotations</h4>
+                    <div className="relative bg-gray-100 rounded-lg overflow-hidden" style={{ maxHeight: '500px' }}>
+                      {resource.image_url ? (
+                        <>
+                          <img 
+                            src={resource.image_url} 
+                            alt={resource.name || 'Annotation image'}
+                            className="w-full h-auto max-h-96 object-contain"
+                          />
+                          {renderAnnotationOverlay()}
+                        </>
+                      ) : (
+                        <div className="flex items-center justify-center h-64 text-gray-400">
+                          Image not available
+                        </div>
+                      )}
+                    </div>
+                    <p className="text-gray-600 text-sm mt-2">
+                      {resource.name || `Resource #${annotation.resource_id}`}
+                      {resource.width && resource.height && (
+                        <span className="text-gray-400 ml-2">({resource.width}x{resource.height})</span>
+                      )}
+                    </p>
                   </>
                 )}
               </div>
@@ -426,7 +579,7 @@ const ReviewTaskWorkspace = ({ annotationType = 'text', projectId: projectIdProp
             </div>
           )}
 
-          {/* Edit Mode Toggle & Action Buttons */}
+            {/* Edit Mode Toggle & Action Buttons */}
           <div className="bg-white rounded-lg shadow p-6">
             <div className="flex items-center justify-between mb-4">
               <h4 className="text-sm font-medium text-gray-700">Actions</h4>
@@ -547,4 +700,4 @@ const ReviewTaskWorkspace = ({ annotationType = 'text', projectId: projectIdProp
   );
 };
 
-export default ReviewTaskWorkspace;
+export default ImageReviewTaskWorkspace;

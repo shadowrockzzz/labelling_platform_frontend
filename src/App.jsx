@@ -77,8 +77,6 @@ function App() {
             <Route path="projects" element={<ProjectList />} />
             <Route path="projects/:id" element={<ProjectDetail />} />
             <Route path="projects/:projectId/tasks" element={<AnnotationTaskPage />} />
-            
-            {/* Profile */}
             <Route path="profile" element={<Profile />} />
           </Route>
           

@@ -145,12 +145,28 @@ export const ANNOTATION_SUB_TYPES = {
 };
 
 export const ANNOTATION_STATUSES = {
+  DRAFT: 'draft',
   PENDING: 'pending',
   IN_PROGRESS: 'in_progress',
   SUBMITTED: 'submitted',
+  IN_REVIEW: 'in_review',
   UNDER_REVIEW: 'under_review',
   APPROVED: 'approved',
-  REJECTED: 'rejected'
+  REJECTED: 'rejected',
+  PENDING_CORRECTION: 'pending_correction'
+};
+
+// Status display configuration
+export const STATUS_CONFIG = {
+  draft: { label: 'Draft', color: 'bg-gray-100 text-gray-800', icon: 'FileText' },
+  pending: { label: 'Pending', color: 'bg-yellow-100 text-yellow-800', icon: 'Clock' },
+  in_progress: { label: 'In Progress', color: 'bg-blue-100 text-blue-800', icon: 'Clock' },
+  submitted: { label: 'Submitted', color: 'bg-blue-100 text-blue-800', icon: 'Clock' },
+  in_review: { label: 'In Review', color: 'bg-purple-100 text-purple-800', icon: 'Eye' },
+  under_review: { label: 'Under Review', color: 'bg-purple-100 text-purple-800', icon: 'Eye' },
+  approved: { label: 'Approved', color: 'bg-green-100 text-green-800', icon: 'CheckCircle' },
+  rejected: { label: 'Rejected', color: 'bg-red-100 text-red-800', icon: 'XCircle' },
+  pending_correction: { label: 'Pending Correction', color: 'bg-orange-100 text-orange-800', icon: 'AlertCircle' }
 };
 
 export const RESOURCE_STATUS = {

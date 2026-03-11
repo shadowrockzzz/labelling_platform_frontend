@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { textAnnotationService } from '../../services/textAnnotationService';
 import imageAnnotationService from '../../services/imageAnnotationService';
-import { ANNOTATION_STATUSES } from '../../features/text-annotation/constants';
+import { ANNOTATION_STATUSES, STATUS_CONFIG } from '../../features/text-annotation/constants';
 import { 
   Filter, 
   Download, 
@@ -12,7 +12,8 @@ import {
   FileText,
   Image,
   ChevronDown,
-  ChevronUp
+  ChevronUp,
+  AlertCircle
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
@@ -69,6 +70,7 @@ const AllAnnotationsDashboard = ({ projectId, projectLabels }) => {
     total: 0,
     draft: 0,
     submitted: 0,
+    in_review: 0,
     approved: 0,
     rejected: 0,
   });
@@ -119,10 +121,11 @@ const AllAnnotationsDashboard = ({ projectId, projectLabels }) => {
       // Calculate stats
       const newStats = {
         total: data.length,
-        draft: data.filter(a => a.status === ANNOTATION_STATUSES.DRAFT).length,
-        submitted: data.filter(a => a.status === ANNOTATION_STATUSES.SUBMITTED).length,
-        approved: data.filter(a => a.status === ANNOTATION_STATUSES.APPROVED).length,
-        rejected: data.filter(a => a.status === ANNOTATION_STATUSES.REJECTED).length,
+        draft: data.filter(a => a.status === ANNOTATION_STATUSES.DRAFT || a.status === 'draft').length,
+        submitted: data.filter(a => a.status === ANNOTATION_STATUSES.SUBMITTED || a.status === 'submitted').length,
+        in_review: data.filter(a => a.status === ANNOTATION_STATUSES.IN_REVIEW || a.status === 'in_review').length,
+        approved: data.filter(a => a.status === ANNOTATION_STATUSES.APPROVED || a.status === 'approved').length,
+        rejected: data.filter(a => a.status === ANNOTATION_STATUSES.REJECTED || a.status === 'rejected').length,
       };
       setStats(newStats);
       
@@ -164,13 +167,25 @@ const AllAnnotationsDashboard = ({ projectId, projectLabels }) => {
   };
 
   const getStatusBadgeClass = (status) => {
+    // Use STATUS_CONFIG if available, otherwise fallback
+    const config = STATUS_CONFIG[status];
+    if (config) return config.color;
+    
+    // Fallback for known statuses
     switch (status) {
+      case 'draft':
       case ANNOTATION_STATUSES.DRAFT:
         return 'bg-gray-100 text-gray-800';
+      case 'submitted':
       case ANNOTATION_STATUSES.SUBMITTED:
         return 'bg-blue-100 text-blue-800';
+      case 'in_review':
+      case ANNOTATION_STATUSES.IN_REVIEW:
+        return 'bg-purple-100 text-purple-800';
+      case 'approved':
       case ANNOTATION_STATUSES.APPROVED:
         return 'bg-green-100 text-green-800';
+      case 'rejected':
       case ANNOTATION_STATUSES.REJECTED:
         return 'bg-red-100 text-red-800';
       default:
@@ -180,12 +195,19 @@ const AllAnnotationsDashboard = ({ projectId, projectLabels }) => {
 
   const getStatusIcon = (status) => {
     switch (status) {
+      case 'draft':
       case ANNOTATION_STATUSES.DRAFT:
         return <FileText className="w-4 h-4" />;
+      case 'submitted':
       case ANNOTATION_STATUSES.SUBMITTED:
         return <Clock className="w-4 h-4" />;
+      case 'in_review':
+      case ANNOTATION_STATUSES.IN_REVIEW:
+        return <Eye className="w-4 h-4" />;
+      case 'approved':
       case ANNOTATION_STATUSES.APPROVED:
         return <CheckCircle className="w-4 h-4" />;
+      case 'rejected':
       case ANNOTATION_STATUSES.REJECTED:
         return <XCircle className="w-4 h-4" />;
       default:
@@ -207,7 +229,7 @@ const AllAnnotationsDashboard = ({ projectId, projectLabels }) => {
   return (
     <div className="space-y-6">
       {/* Stats Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-6 gap-4">
         <div className="bg-white rounded-lg shadow p-4">
           <p className="text-sm text-gray-500">Total</p>
           <p className="text-2xl font-bold text-gray-900">{stats.total}</p>
@@ -219,6 +241,10 @@ const AllAnnotationsDashboard = ({ projectId, projectLabels }) => {
         <div className="bg-white rounded-lg shadow p-4">
           <p className="text-sm text-gray-500">Submitted</p>
           <p className="text-2xl font-bold text-blue-600">{stats.submitted}</p>
+        </div>
+        <div className="bg-white rounded-lg shadow p-4">
+          <p className="text-sm text-gray-500">In Review</p>
+          <p className="text-2xl font-bold text-purple-600">{stats.in_review}</p>
         </div>
         <div className="bg-white rounded-lg shadow p-4">
           <p className="text-sm text-gray-500">Approved</p>
@@ -263,10 +289,11 @@ const AllAnnotationsDashboard = ({ projectId, projectLabels }) => {
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500"
             >
               <option value="">All Statuses</option>
-              <option value={ANNOTATION_STATUSES.DRAFT}>Draft</option>
-              <option value={ANNOTATION_STATUSES.SUBMITTED}>Submitted</option>
-              <option value={ANNOTATION_STATUSES.APPROVED}>Approved</option>
-              <option value={ANNOTATION_STATUSES.REJECTED}>Rejected</option>
+              <option value="draft">Draft</option>
+              <option value="submitted">Submitted</option>
+              <option value="in_review">In Review</option>
+              <option value="approved">Approved</option>
+              <option value="rejected">Rejected</option>
             </select>
           </div>
 
