@@ -34,9 +34,13 @@ All notable changes to the frontend will be documented in this file.
 ### Components Updated
 - `TextAnnotationWorkspace.jsx` - Review queue with START REVIEWING
 - `ImageAnnotationWorkspace.jsx` - Review queue with START REVIEWING
-- `ReviewPanel.jsx` - Multi-level review actions
+- `ReviewTaskWorkspace.jsx` - Multi-level review with auto-detected level (replaced ReviewPanel)
+- `ImageReviewTaskWorkspace.jsx` - Image review with auto-detected level
 - `ProjectDetail.jsx` - Resource pool management tab
 - `ProjectForm.jsx` - Reviewer chain configuration
+
+### Components Removed
+- `ReviewPanel.jsx` - Replaced by `ReviewTaskWorkspace.jsx`
 
 ### Services Added
 - `annotationTaskService.js` - Annotation task API calls

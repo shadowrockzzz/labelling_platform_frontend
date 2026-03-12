@@ -109,7 +109,7 @@ labelling_platform_frontend/
 │   │       ├── RejectedAnnotations.jsx
 │   │       ├── ResourceList.jsx
 │   │       ├── ResourceUploader.jsx
-│   │       ├── ReviewPanel.jsx
+│   │       ├── ReviewTaskWorkspace.jsx
 │   │       ├── TextAnnotationEditor.jsx
 │   │       └── TextAnnotationWorkspace.jsx
 │   ├── contexts/           # React contexts

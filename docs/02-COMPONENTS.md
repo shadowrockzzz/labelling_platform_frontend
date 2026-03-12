@@ -131,7 +131,7 @@ Restricts access based on user role.
 import RoleBasedRoute from '@/components/auth/RoleBasedRoute';
 
 <Route element={<RoleBasedRoute allowedRoles={['admin', 'reviewer']} />}>
-  <Route path="/review" element={<ReviewPanel />} />
+  <Route path="/review" element={<ReviewTaskWorkspace />} />
 </Route>
 ```
 

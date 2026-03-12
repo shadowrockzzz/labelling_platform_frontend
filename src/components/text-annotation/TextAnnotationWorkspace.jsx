@@ -6,7 +6,7 @@ import ResourceUploader from './ResourceUploader';
 import ResourceList from './ResourceList';
 import TextAnnotationEditor from './TextAnnotationEditor';
 import AnnotationList from './AnnotationList';
-import ReviewPanel from './ReviewPanel';
+import ReviewTaskWorkspace from './ReviewTaskWorkspace';
 import QueueStatus from './QueueStatus';
 import RejectedAnnotations from './RejectedAnnotations';
 import AllAnnotationsDashboard from './AllAnnotationsDashboard';
@@ -360,12 +360,11 @@ const TextAnnotationWorkspace = ({ projectId, userRole, project }) => {
 
       {/* Review Tab - Only for reviewers/admins */}
       {activeTab === 'review' && canReview && (
-        <ReviewPanel
+        <ReviewTaskWorkspace
+          annotationType="text"
           projectId={projectId}
-          annotations={annotations}
-          onReview={handleReviewAnnotation}
-          loading={annotationsLoading}
-          projectLabels={project?.labels || []}
+          project={project}
+          team={project?.team}
         />
       )}
 

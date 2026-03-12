@@ -28,7 +28,7 @@ TextAnnotationWorkspace
 │   ├── HighlightableTextArea
 │   └── LabelPalette
 ├── AnnotationList
-├── ReviewPanel
+├── ReviewTaskWorkspace
 └── QueueStatus
 ```
 
@@ -179,32 +179,46 @@ import EditAnnotationForm from '@/components/text-annotation/EditAnnotationForm'
 
 ## Review Components
 
-### ReviewPanel
+### ReviewTaskWorkspace
 
-Interface for reviewing submitted annotations.
+Main workspace for reviewing submitted annotations with multi-level review support.
 
 ```jsx
-import ReviewPanel from '@/components/text-annotation/ReviewPanel';
+import ReviewTaskWorkspace from '@/components/text-annotation/ReviewTaskWorkspace';
 
-<ReviewPanel
-  annotation={annotation}
-  onApprove={handleApprove}
-  onReject={handleReject}
+<ReviewTaskWorkspace
+  annotationType="text"
+  projectId={projectId}
+  project={project}
+  team={team}
 />
 ```
 
 **Props:**
 | Prop | Type | Description |
 |------|------|-------------|
-| `annotation` | object | Annotation to review |
-| `onApprove` | function | Approve handler |
-| `onReject` | function | Reject handler |
+| `annotationType` | string | Type of annotation ("text" or "image") |
+| `projectId` | string/number | Project ID |
+| `project` | object | Project object with config and labels |
+| `team` | object | Team object with reviewers array |
 
 **Features:**
-- View annotation details
+- Auto-detects reviewer level from team assignments (no dropdown)
+- View annotation details with review chain history
 - Add review comments
-- Approve/Reject actions
-- Suggest corrections
+- Approve/Reject/Edit/Skip actions
+- Edit mode with full TextAnnotationEditor
+- Pool statistics display
+
+**Reviewer Level Auto-Detection:**
+```js
+// Level is auto-detected from team.reviewers
+const reviewLevel = useMemo(() => {
+  if (!user || !team?.reviewers) return 1;
+  const reviewerAssignment = team.reviewers.find(r => r.id === user.id);
+  return reviewerAssignment?.review_level || 1;
+}, [user, team]);
+```
 
 ### RejectedAnnotations
 

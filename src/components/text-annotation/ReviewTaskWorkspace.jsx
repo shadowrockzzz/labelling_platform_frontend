@@ -9,7 +9,7 @@
  * - Full TextAnnotationEditor in edit mode
  */
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useParams } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import reviewTaskService, { formatReviewChain } from '../../services/reviewTaskService';
@@ -18,10 +18,17 @@ import TextAnnotationEditor from './TextAnnotationEditor';
 import { Edit, Save, Eye } from 'lucide-react';
 import toast from 'react-hot-toast';
 
-const ReviewTaskWorkspace = ({ annotationType = 'text', projectId: projectIdProp, project }) => {
+const ReviewTaskWorkspace = ({ annotationType = 'text', projectId: projectIdProp, project, team }) => {
   const { projectId: routeProjectId } = useParams();
   const projectId = projectIdProp || routeProjectId;  // Use prop if provided, else route param
   const { user } = useAuth();
+  
+  // Auto-detect reviewer level from project team assignments
+  const reviewLevel = useMemo(() => {
+    if (!user || !team?.reviewers) return 1;
+    const reviewerAssignment = team.reviewers.find(r => r.id === user.id || r.user_id === user.id);
+    return reviewerAssignment?.review_level || 1;
+  }, [user, team]);
   
   // State
   const [loading, setLoading] = useState(false);
@@ -29,7 +36,6 @@ const ReviewTaskWorkspace = ({ annotationType = 'text', projectId: projectIdProp
   const [reviewTask, setReviewTask] = useState(null);
   const [annotation, setAnnotation] = useState(null);
   const [resource, setResource] = useState(null);
-  const [reviewLevel, setReviewLevel] = useState(1);
   const [comment, setComment] = useState('');
   const [showCommentModal, setShowCommentModal] = useState(false);
   const [pendingAction, setPendingAction] = useState(null);
@@ -281,20 +287,11 @@ const ReviewTaskWorkspace = ({ annotationType = 'text', projectId: projectIdProp
         </div>
       )}
 
-      {/* Review Level Selector */}
-      <div className="mb-6">
-        <label className="block text-sm font-medium text-gray-700 mb-2">
-          Your Review Level
-        </label>
-        <select
-          value={reviewLevel}
-          onChange={(e) => setReviewLevel(Number(e.target.value))}
-          className="border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-        >
-          <option value={1}>Level 1 (First Reviewer)</option>
-          <option value={2}>Level 2 (Second Reviewer)</option>
-          <option value={3}>Level 3 (Final Reviewer)</option>
-        </select>
+      {/* Review Level Display - Read Only */}
+      <div className="mb-6 bg-blue-50 border border-blue-200 rounded-lg p-4">
+        <p className="text-sm text-gray-600">
+          You are reviewing at <span className="font-semibold text-blue-700">Level {reviewLevel}</span>
+        </p>
       </div>
 
       {/* Error Display */}
