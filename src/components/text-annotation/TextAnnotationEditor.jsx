@@ -32,9 +32,44 @@ const TextAnnotationEditor = ({
       setSelectedLabel(annotation.label || '');
       setAnnotationData(annotation.annotation_data || {});
       
-      // For span-based annotations, populate pendingSpans with existing spans
-      if (showSpanFields && annotation.annotation_data?.spans) {
-        setPendingSpans(annotation.annotation_data.spans);
+      // For span-based annotations, populate pendingSpans with existing data
+      // Handle various annotation data formats
+      if (showSpanFields && annotation.annotation_data) {
+        const annData = annotation.annotation_data;
+        let spans = [];
+        
+        // Check for 'spans' key (expected format)
+        if (annData.spans && Array.isArray(annData.spans)) {
+          spans = annData.spans;
+        }
+        // Check for 'entities' key (NER format)
+        else if (annData.entities && Array.isArray(annData.entities)) {
+          spans = annData.entities.map((ent, idx) => ({
+            id: ent.id || `entity_${idx}`,
+            text: ent.text || ent.entity_text || '',
+            label: ent.label || ent.type || '',
+            start: ent.start || ent.span_start || 0,
+            end: ent.end || ent.span_end || 0,
+            ...ent
+          }));
+        }
+        // Check if annotation_data itself is an array of spans
+        else if (Array.isArray(annData)) {
+          spans = annData.map((span, idx) => ({
+            id: span.id || `span_${idx}`,
+            text: span.text || '',
+            label: span.label || '',
+            start: span.start || span.span_start || 0,
+            end: span.end || span.span_end || 0,
+            ...span
+          }));
+        }
+        
+        console.log('=== Initializing pendingSpans ===');
+        console.log('Annotation data:', annData);
+        console.log('Extracted spans:', spans);
+        
+        setPendingSpans(spans);
       }
     } else {
       // Clear pending spans when not editing

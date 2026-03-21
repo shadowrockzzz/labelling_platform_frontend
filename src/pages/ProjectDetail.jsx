@@ -1022,9 +1022,9 @@ export const ProjectDetail = () => {
       {activeTab === 'review' && team.reviewers?.some(r => r.id === currentUser?.id) && (
         <div className="bg-white rounded-lg shadow-lg overflow-hidden">
           {project.annotation_type === 'image' ? (
-            <ImageReviewTaskWorkspace annotationType="image" projectId={id} />
+            <ImageReviewTaskWorkspace annotationType="image" projectId={id} project={project} team={team} />
           ) : (
-            <ReviewTaskWorkspace annotationType="text" projectId={id} />
+            <ReviewTaskWorkspace annotationType="text" projectId={id} project={project} team={team} />
           )}
         </div>
       )}
