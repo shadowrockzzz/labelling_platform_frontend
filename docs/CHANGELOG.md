@@ -2,6 +2,18 @@
 
 All notable changes to the frontend will be documented in this file.
 
+## [2.0.1] - 2026-03-21
+
+### Bug Fixes
+- **Fixed review level detection** - `ProjectDetail.jsx` now correctly passes `team` and `project` props to `ReviewTaskWorkspace` and `ImageReviewTaskWorkspace` components, enabling proper auto-detection of reviewer levels
+- **Fixed Save button in edit mode** - `TextAnnotationEditor.jsx` now correctly initializes `pendingSpans` from various annotation data formats (`spans`, `entities`, or direct array), enabling the "Done" button when editing existing annotations
+
+### Improvements
+- Enhanced annotation data format handling in `TextAnnotationEditor` to support:
+  - `annotation_data.spans` (expected format)
+  - `annotation_data.entities` (NER format)
+  - Direct array in `annotation_data`
+
 ## [2.0.0] - 2026-03-07
 
 ### Major Features Added
