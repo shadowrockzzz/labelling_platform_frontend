@@ -50,7 +50,7 @@ export const Dashboard = () => {
     <div className="p-6 md:p-8">
       {/* Header */}
       <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-900 mb-2">
+        <h1 className="text-3xl font-bold text-gray-900 mb-2" data-testid="dashboard-heading">
           Welcome back, {user?.full_name || user?.email}!
         </h1>
         <p className="text-gray-600">
@@ -116,6 +116,7 @@ export const Dashboard = () => {
           {user?.role === 'admin' && (
             <a
               href="/admin/users"
+              data-testid="nav-users"
               className="flex items-center gap-3 p-4 rounded-lg border border-gray-200 hover:border-primary-500 hover:bg-primary-50 transition-all duration-200 group"
             >
               <div className="w-10 h-10 bg-primary-100 rounded-lg flex items-center justify-center group-hover:bg-primary-200 transition-colors">
@@ -130,6 +131,7 @@ export const Dashboard = () => {
 
           <a
             href="/projects"
+            data-testid="nav-projects"
             className="flex items-center gap-3 p-4 rounded-lg border border-gray-200 hover:border-primary-500 hover:bg-primary-50 transition-all duration-200 group"
           >
             <div className="w-10 h-10 bg-primary-100 rounded-lg flex items-center justify-center group-hover:bg-primary-200 transition-colors">

@@ -249,7 +249,7 @@ const ReviewTaskWorkspace = ({ annotationType = 'text', projectId: projectIdProp
 
   if (loading && !reviewTask) {
     return (
-      <div className="flex items-center justify-center h-64">
+      <div className="flex items-center justify-center h-64" data-testid="loading-indicator">
         <LoadingSpinner />
       </div>
     );
@@ -288,7 +288,7 @@ const ReviewTaskWorkspace = ({ annotationType = 'text', projectId: projectIdProp
       )}
 
       {/* Review Level Display - Read Only */}
-      <div className="mb-6 bg-blue-50 border border-blue-200 rounded-lg p-4">
+      <div className="mb-6 bg-blue-50 border border-blue-200 rounded-lg p-4" data-testid="reviewer-level-display">
         <p className="text-sm text-gray-600">
           You are reviewing at <span className="font-semibold text-blue-700">Level {reviewLevel}</span>
         </p>
@@ -296,7 +296,7 @@ const ReviewTaskWorkspace = ({ annotationType = 'text', projectId: projectIdProp
 
       {/* Error Display */}
       {error && (
-        <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded mb-6">
+        <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded mb-6" data-testid="no-reviews-message">
           {error}
         </div>
       )}
@@ -307,6 +307,7 @@ const ReviewTaskWorkspace = ({ annotationType = 'text', projectId: projectIdProp
           <button
             onClick={handleStartReview}
             disabled={loading}
+            data-testid="start-reviewing-btn"
             className="bg-blue-600 text-white px-8 py-4 rounded-lg text-lg font-semibold hover:bg-blue-700 transition disabled:opacity-50"
           >
             {loading ? 'Starting...' : 'Start Reviewing'}
@@ -325,7 +326,7 @@ const ReviewTaskWorkspace = ({ annotationType = 'text', projectId: projectIdProp
             <div className="flex justify-between items-start mb-4">
               <div>
                 <h3 className="text-lg font-semibold">Review Task #{reviewTask.short_id}</h3>
-                <p className="text-sm text-gray-500">
+                <p className="text-sm text-gray-500" data-testid="current-task-id">
                   Review Level: {reviewTask.review_level} | Status: {reviewTask.status}
                 </p>
               </div>
@@ -458,6 +459,7 @@ const ReviewTaskWorkspace = ({ annotationType = 'text', projectId: projectIdProp
               <textarea
                 value={comment}
                 onChange={(e) => setComment(e.target.value)}
+                data-testid="reject-comment-input"
                 className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                 rows={2}
                 placeholder="Add a comment..."
@@ -468,6 +470,7 @@ const ReviewTaskWorkspace = ({ annotationType = 'text', projectId: projectIdProp
               <button
                 onClick={() => handleAction('approve')}
                 disabled={loading || isEditMode}
+                data-testid="approve-btn"
                 className="flex-1 bg-green-600 text-white px-4 py-2 rounded-md font-medium hover:bg-green-700 transition disabled:opacity-50"
               >
                 ✓ Approve
@@ -475,6 +478,7 @@ const ReviewTaskWorkspace = ({ annotationType = 'text', projectId: projectIdProp
               <button
                 onClick={() => handleAction('reject')}
                 disabled={loading || !comment || isEditMode}
+                data-testid="reject-btn"
                 className="flex-1 bg-red-600 text-white px-4 py-2 rounded-md font-medium hover:bg-red-700 transition disabled:opacity-50 disabled:bg-gray-400"
               >
                 ✗ Reject
@@ -483,6 +487,7 @@ const ReviewTaskWorkspace = ({ annotationType = 'text', projectId: projectIdProp
                 <button
                   onClick={handleSaveEdit}
                   disabled={loading}
+                  data-testid="confirm-reject-btn"
                   className="flex-1 bg-blue-600 text-white px-4 py-2 rounded-md font-medium hover:bg-blue-700 transition disabled:opacity-50 flex items-center justify-center gap-2"
                 >
                   <Save className="w-4 h-4" />
@@ -492,6 +497,7 @@ const ReviewTaskWorkspace = ({ annotationType = 'text', projectId: projectIdProp
                 <button
                   onClick={handleSkip}
                   disabled={loading}
+                  data-testid="skip-task-btn"
                   className="flex-1 bg-gray-200 text-gray-700 px-4 py-2 rounded-md font-medium hover:bg-gray-300 transition disabled:opacity-50"
                 >
                   Skip
@@ -522,6 +528,7 @@ const ReviewTaskWorkspace = ({ annotationType = 'text', projectId: projectIdProp
               <button
                 onClick={handleCommentSubmit}
                 disabled={!comment.trim()}
+                data-testid="confirm-reject-btn"
                 className="flex-1 bg-red-600 text-white px-4 py-2 rounded-md font-medium hover:bg-red-700 transition disabled:opacity-50"
               >
                 Confirm Reject

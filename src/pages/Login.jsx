@@ -48,7 +48,7 @@ export const Login = () => {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
               </svg>
             </div>
-            <h1 className="text-3xl font-bold text-gray-900 mb-2">Welcome Back</h1>
+            <h1 className="text-3xl font-bold text-gray-900 mb-2" data-testid="login-heading">Welcome Back</h1>
             <p className="text-gray-600">Sign in to your account to continue</p>
           </div>
 
@@ -66,6 +66,7 @@ export const Login = () => {
                 <input
                   id="email"
                   type="email"
+                  data-testid="login-email-input"
                   {...register('email', {
                     required: 'Email is required',
                     pattern: {
@@ -100,6 +101,7 @@ export const Login = () => {
                 <input
                   id="password"
                   type={showPassword ? 'text' : 'password'}
+                  data-testid="login-password-input"
                   {...register('password', {
                     required: 'Password is required',
                     minLength: {
@@ -159,6 +161,7 @@ export const Login = () => {
             {/* Submit Button */}
             <button
               type="submit"
+              data-testid="login-submit-btn"
               disabled={isLoading}
               className="w-full bg-gradient-to-r from-primary-600 to-primary-700 text-white py-3 rounded-lg font-medium hover:from-primary-700 hover:to-primary-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 shadow-lg hover:shadow-xl"
             >

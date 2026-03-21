@@ -1,0 +1,64 @@
+# ========================================
+# Dependencies
+# ========================================
+node_modules/
+
+# ========================================
+# Build / Distribution
+# ========================================
+dist/
+build/
+out/
+
+# ========================================
+# Logs
+# ========================================
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# ========================================
+# Environment & Config
+# ========================================
+.env
+.env.local
+.env.*.local
+*.secret
+
+# ========================================
+# IDE / Editor
+# ========================================
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# ========================================
+# OS-Specific
+# ========================================
+.DS_Store
+Thumbs.db
+
+# ========================================
+# Test outputs and reports
+# ========================================
+# Allure reports
+tests/reports/allure-results/
+tests/reports/allure-report/
+
+# Jest coverage
+tests/coverage/
+
+# WebdriverIO screenshots on failure
+tests/wdio/errorShots/
+
+# Jest cache
+.jest-cache/
+
+# ========================================
+# Misc
+# ========================================
+.cache/
+*.tmp
+*.bak

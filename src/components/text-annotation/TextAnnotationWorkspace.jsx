@@ -223,6 +223,7 @@ const TextAnnotationWorkspace = ({ projectId, userRole, project }) => {
         {canAnnotate && !canReview && (
           <button
             onClick={() => setActiveTab('annotate')}
+            data-testid="tab-annotate"
             className={`px-4 py-2 font-medium transition-colors ${
               activeTab === 'annotate'
                 ? 'border-b-2 border-blue-500 text-blue-600'
@@ -251,6 +252,7 @@ const TextAnnotationWorkspace = ({ projectId, userRole, project }) => {
         {canReview && (
           <button
             onClick={() => setActiveTab('review')}
+            data-testid="tab-review"
             className={`px-4 py-2 font-medium transition-colors ${
               activeTab === 'review'
                 ? 'border-b-2 border-blue-500 text-blue-600'
@@ -265,6 +267,7 @@ const TextAnnotationWorkspace = ({ projectId, userRole, project }) => {
         {isAdmin && (
           <button
             onClick={() => setActiveTab('all')}
+            data-testid="tab-all-annotations"
             className={`px-4 py-2 font-medium transition-colors ${
               activeTab === 'all'
                 ? 'border-b-2 border-purple-500 text-purple-600'

@@ -2,6 +2,52 @@
 
 All notable changes to the frontend will be documented in this file.
 
+## [2.1.0] - 2026-03-21
+
+### Testing Infrastructure Added
+
+#### E2E Tests (WebdriverIO)
+- **Page Object Model** pattern for maintainable selectors
+- **Allure reporting** for rich HTML test reports
+- **Headless Chrome** for CI execution
+
+#### E2E Test Files Created
+- `tests/wdio/pages/LoginPage.js` — Login page selectors and actions
+- `tests/wdio/pages/DashboardPage.js` — Dashboard page object
+- `tests/wdio/pages/ProjectDetailPage.js` — Project detail page object
+- `tests/wdio/specs/auth/login.spec.js` — Login flow tests
+- `tests/wdio/specs/rbac/roleBasedVisibility.spec.js` — Role-based UI tests
+- `tests/wdio/specs/annotation/annotatorWorkflow.spec.js` — Annotator workflow tests
+- `tests/wdio/specs/review/reviewerWorkflow.spec.js` — Reviewer workflow tests
+- `tests/wdio/specs/admin/allAnnotations.spec.js` — Admin annotations tests
+
+#### Unit Tests (Jest + React Testing Library)
+- `tests/unit/components/AllAnnotationsList.test.jsx` — AllAnnotationsDashboard component tests
+- `tests/unit/components/ReviewTaskWorkspace.test.jsx` — Review workspace component tests
+- `tests/unit/__mocks__/` — CSS and file mocks for Jest
+
+#### Configuration Files
+- `tests/package.json` — Test dependencies and scripts
+- `tests/jest.config.js` — Jest configuration for unit tests
+- `tests/wdio/wdio.conf.js` — WebdriverIO local config
+- `tests/wdio/wdio.conf.ci.js` — WebdriverIO CI config
+- `tests/.env.test` — Test environment variables
+
+#### Documentation
+- `tests/README.md` — Comprehensive test documentation
+
+#### CI Integration
+- GitHub Actions workflow at `.github/workflows/tests.yml`
+- Automated E2E and unit test runs
+
+### Test Users Expected in Backend
+| Role | Email | Password |
+|------|-------|----------|
+| Admin | test_admin@labelling.example.com | TestAdmin@123 |
+| Project Manager | test_pm@labelling.example.com | TestPM@123 |
+| Reviewer | test_reviewer@labelling.example.com | TestReviewer@123 |
+| Annotator | test_annotator@labelling.example.com | TestAnnotator@123 |
+
 ## [2.0.1] - 2026-03-21
 
 ### Bug Fixes

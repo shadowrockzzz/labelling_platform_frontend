@@ -292,7 +292,7 @@ export const ProjectDetail = () => {
       <div className="mb-8">
         <div className="flex items-start justify-between">
           <div className="flex-1">
-            <h1 className="text-3xl font-bold text-gray-900 mb-2">{project.name}</h1>
+            <h1 className="text-3xl font-bold text-gray-900 mb-2" data-testid="project-title">{project.name}</h1>
             <p className="text-gray-600 mb-4">{project.description || 'No description'}</p>
             <div className="flex items-center gap-4 text-sm text-gray-600">
               <span>Created by: {project.owner?.full_name || 'Unknown'}</span>
@@ -309,6 +309,7 @@ export const ProjectDetail = () => {
         <nav className="flex gap-8">
           <button
             onClick={() => setActiveTab('overview')}
+            data-testid="tab-overview"
             className={`pb-4 border-b-2 font-medium transition-colors ${
               activeTab === 'overview'
                 ? 'border-primary-600 text-primary-600'
@@ -334,6 +335,7 @@ export const ProjectDetail = () => {
           {team.reviewers?.some(r => r.id === currentUser?.id) && (
             <button
               onClick={() => setActiveTab('review')}
+              data-testid="tab-review"
               className={`pb-4 border-b-2 font-medium transition-colors flex items-center gap-2 ${
                 activeTab === 'review'
                   ? 'border-primary-600 text-primary-600'
@@ -346,6 +348,7 @@ export const ProjectDetail = () => {
           )}
           <button
             onClick={() => setActiveTab('team')}
+            data-testid="tab-team"
             className={`pb-4 border-b-2 font-medium transition-colors ${
               activeTab === 'team'
                 ? 'border-primary-600 text-primary-600'

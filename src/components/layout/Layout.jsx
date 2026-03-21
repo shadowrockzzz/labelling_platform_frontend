@@ -75,6 +75,7 @@ export const Layout = () => {
                 key={item.name}
                 to={item.href}
                 onClick={() => setSidebarOpen(false)}
+                data-testid={item.name === 'Users' ? 'nav-users' : undefined}
                 className={`
                   flex items-center gap-3 px-3 py-2 rounded-lg transition-colors duration-200
                   ${isActive 
@@ -108,6 +109,7 @@ export const Layout = () => {
           </div>
           <button
             onClick={handleLogout}
+            data-testid="logout-btn"
             className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-error-600 hover:bg-error-50 transition-colors duration-200"
           >
             <LogOut className="h-5 w-5" />
