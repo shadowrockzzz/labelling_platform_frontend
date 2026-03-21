@@ -1,4 +1,4 @@
-# Frontend Test Suite
+I # Frontend Test Suite
 
 Enterprise-grade test suite for the Labelling Platform frontend.
 
@@ -159,7 +159,7 @@ npm run test:e2e
 
 **3. Clean Up Test Users:**
 ```bash
-npm run clean:test-users
+EXISTING_ADMIN_EMAIL=your_admin@example.com EXISTING_ADMIN_PASSWORD=YourPassword npm run clean:test-users
 ```
 
 ### One-Liner (Seed + Test + Clean)

@@ -200,13 +200,32 @@ npm run allure:report
 
 This starts a server on port 8765. Open **http://localhost:8765** in your browser.
 
-### Clean Up Test Users
+### Clean Up Test Users (Unseed)
 
-After testing, remove test users:
+After testing, remove all test users and their data:
 ```bash
 cd tests
+EXISTING_ADMIN_EMAIL=your_admin@example.com EXISTING_ADMIN_PASSWORD=YourPassword npm run clean:test-users
+```
+
+This deletes all users with `@labelling.example.com` email addresses.
+
+**Full Test Cycle (Seed → Test → Clean):**
+```bash
+cd tests
+
+# 1. Seed test users
+EXISTING_ADMIN_EMAIL=your_admin@example.com EXISTING_ADMIN_PASSWORD=YourPassword \
+  npm run seed:test-users -- --with-existing-admin
+
+# 2. Run tests
+npm run test:e2e
+
+# 3. Clean up test users
 npm run clean:test-users
 ```
+
+> **Tip:** Always clean up test users after E2E tests to keep your database clean.
 
 ### Test Structure
 
