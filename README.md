@@ -138,6 +138,96 @@ npm run lint
 npm run preview
 ```
 
+## Testing
+
+The frontend includes a comprehensive enterprise-grade test suite with E2E (WebdriverIO) and unit tests (Jest).
+
+### Setup
+
+**1. Install test dependencies:**
+```bash
+cd labelling_platform_frontend/tests
+npm install
+```
+
+**2. Ensure backend is running on port 8001:**
+```bash
+cd ../../labelling_platform_backend
+uvicorn app.main:app --port 8001
+```
+
+**3. Ensure frontend is running on port 5173:**
+```bash
+cd ../labelling_platform_frontend
+npm run dev
+```
+
+**4. Seed test users (one-time setup):**
+```bash
+cd tests
+EXISTING_ADMIN_EMAIL=your_admin@example.com EXISTING_ADMIN_PASSWORD=YourPassword \
+  npm run seed:test-users -- --with-existing-admin
+```
+
+### Run Tests
+
+**E2E Tests (WebdriverIO):**
+```bash
+cd tests
+npm run test:e2e           # Local Chrome (headless)
+npm run test:e2e:ci        # CI mode with JUnit reporter
+```
+
+**Unit Tests (Jest):**
+```bash
+cd tests
+npm run test:unit          # Run all unit tests
+npm run test:unit:watch    # Watch mode
+```
+
+**All Tests:**
+```bash
+npm run test:all
+```
+
+### View Test Reports
+
+**Allure report:**
+```bash
+cd tests
+npm run allure:report
+```
+
+This starts a server on port 8765. Open **http://localhost:8765** in your browser.
+
+### Clean Up Test Users
+
+After testing, remove test users:
+```bash
+cd tests
+npm run clean:test-users
+```
+
+### Test Structure
+
+```
+tests/
+├── package.json              # Test dependencies and scripts
+├── jest.config.js            # Jest configuration
+├── .env.test                 # Test environment variables
+├── unit/                     # Jest unit/component tests
+│   ├── __mocks__/            # Mock files
+│   └── components/           # Component tests
+├── wdio/                     # WebdriverIO E2E tests
+│   ├── wdio.conf.js          # Local config
+│   ├── wdio.conf.ci.js       # CI config
+│   ├── pages/                # Page Object Models
+│   └── specs/                # Test specifications
+└── scripts/                  # Test utilities
+```
+
+For detailed testing documentation, see [tests/README.md](tests/README.md).
+
 ## License
 
 MIT License
