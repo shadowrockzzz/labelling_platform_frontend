@@ -2,6 +2,53 @@
 
 All notable changes to the frontend will be documented in this file.
 
+## [2.2.0] - 2026-03-22
+
+### Rejected Tasks Management
+
+#### New Components
+- **MyRejectedTasks** (`src/components/tasks/MyRejectedTasks.jsx`)
+  - Shows annotators their rejected tasks that need correction
+  - Displays resource name, rejection date, and review comment
+  - "Resume" button to start working on a rejected task
+  - "Skip" button to move task to backlog
+  - Supports both text and image annotation types
+
+- **BacklogManagement** (`src/components/tasks/BacklogManagement.jsx`)
+  - Admin/PM view of all skipped-rejected tasks
+  - Shows task ID, resource name, annotator, and skip date
+  - "Release" button to return task to available pool
+  - "Delete" button to soft-delete a task
+
+- **Tasks Index** (`src/components/tasks/index.js`)
+  - Clean exports for task-related components
+
+#### Updated Components
+- **ProjectDetail.jsx**
+  - Added "My Rejections" tab for annotators
+  - Tab visible only to users with annotator role
+  - Shows count badge with number of rejected tasks
+  - Integrates `MyRejectedTasks` component
+
+#### Updated Services
+- **annotationTaskService.js**
+  - `getMyRejectedTasks(projectId, projectType)` - Get annotator's rejected tasks
+  - `getMyRejectedCount(projectId, projectType)` - Get rejected tasks count
+  - `skipRejectedTask(taskId, projectId, projectType)` - Skip a rejected task
+  - `resumeRejectedTask(taskId, projectId, projectType)` - Resume a rejected task
+  - `getBacklog(projectId, projectType)` - Get backlog (Admin/PM only)
+  - `releaseFromBacklog(taskId, projectId, projectType, action)` - Release from backlog
+
+#### Features
+- Annotators can view all their rejected tasks in one place
+- Annotators can resume working on rejected tasks
+- Annotators can skip rejected tasks to deal with later
+- Admins/PMs can manage the backlog of skipped-rejected tasks
+- Full support for both text and image annotation projects
+
+#### Backend Companion
+- Requires backend v2.2.0 for rejected tasks API endpoints
+
 ## [2.1.0] - 2026-03-21
 
 ### Testing Infrastructure Added
@@ -47,6 +94,14 @@ All notable changes to the frontend will be documented in this file.
 | Project Manager | test_pm@labelling.example.com | TestPM@123 |
 | Reviewer | test_reviewer@labelling.example.com | TestReviewer@123 |
 | Annotator | test_annotator@labelling.example.com | TestAnnotator@123 |
+
+## [2.0.2] - 2026-03-22
+
+### Bug Fixes
+- **Fixed annotators not seeing rejected tasks** - The "My Rejected" tab now correctly shows only the current annotator's rejected annotations
+  - Updated `list_annotations` CRUD function to accept `annotator_id` filter parameter
+  - Updated router endpoint to pass `annotator_id` for annotator role users
+  - Annotators now see only their own rejected work; admins/PMs/reviewers see all
 
 ## [2.0.1] - 2026-03-21
 

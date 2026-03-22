@@ -1,6 +1,6 @@
 # Getting Started Guide - Frontend
 
-**Last Updated:** March 1, 2026
+**Last Updated:** March 22, 2026
 
 ---
 
@@ -101,6 +101,10 @@ labelling_platform_frontend/
 │   │   │   ├── ColorPicker.jsx
 │   │   │   ├── LabelEditor.jsx
 │   │   │   └── ProjectForm.jsx
+│   │   ├── tasks/          # Task management
+│   │   │   ├── BacklogManagement.jsx
+│   │   │   ├── MyRejectedTasks.jsx
+│   │   │   └── index.js
 │   │   └── text-annotation/# Text annotation
 │   │       ├── AllAnnotationsDashboard.jsx
 │   │       ├── AnnotationList.jsx
@@ -134,6 +138,7 @@ labelling_platform_frontend/
 │   │   └── UserManagement.jsx
 │   ├── services/           # API services
 │   │   ├── api.jsx
+│   │   ├── annotationTaskService.js
 │   │   ├── authService.jsx
 │   │   ├── assignmentService.js
 │   │   ├── imageAnnotationService.js

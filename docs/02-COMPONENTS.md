@@ -1,6 +1,6 @@
 # Components
 
-**Last Updated:** March 1, 2026
+**Last Updated:** March 22, 2026
 
 ---
 
@@ -11,6 +11,7 @@
 3. [Auth Components](#auth-components)
 4. [Layout Components](#layout-components)
 5. [Project Components](#project-components)
+6. [Task Components](#task-components)
 
 ---
 
@@ -25,6 +26,7 @@ App
 │       │       ├── Dashboard
 │       │       ├── ProjectList
 │       │       ├── ProjectDetail
+│       │       │   └── MyRejectedTasks (annotators only)
 │       │       ├── UserManagement
 │       │       └── Profile
 │       └── Login
@@ -245,6 +247,69 @@ import ColorPicker from '@/components/projects/ColorPicker';
   onChange={setColor}
 />
 ```
+
+---
+
+## Task Components
+
+### MyRejectedTasks
+
+Shows annotators their rejected tasks that need correction.
+
+```jsx
+import { MyRejectedTasks } from '@/components/tasks';
+
+<MyRejectedTasks 
+  projectId={projectId}
+  annotationType="text"  // or "image"
+/>
+```
+
+**Props:**
+| Prop | Type | Description |
+|------|------|-------------|
+| `projectId` | number | Project ID |
+| `annotationType` | string | "text" or "image" |
+
+**Features:**
+- Lists all rejected tasks for the current annotator
+- Shows resource name, rejection date, and review comment
+- "Resume" button to continue working on a rejected task
+- "Skip" button to move task to backlog for later
+- Empty state with helpful message when no rejected tasks
+
+**Usage in ProjectDetail:**
+- Visible as "My Rejections" tab for annotators only
+- Shows count badge with number of pending rejected tasks
+
+### BacklogManagement
+
+Admin/PM view for managing skipped-rejected tasks.
+
+```jsx
+import { BacklogManagement } from '@/components/tasks';
+
+<BacklogManagement 
+  projectId={projectId}
+  annotationType="text"  // or "image"
+/>
+```
+
+**Props:**
+| Prop | Type | Description |
+|------|------|-------------|
+| `projectId` | number | Project ID |
+| `annotationType` | string | "text" or "image" |
+
+**Features:**
+- Lists all tasks in the backlog (skipped-rejected tasks)
+- Shows task ID, resource name, annotator, and skip date
+- "Release" button to return task to available pool
+- "Delete" button to soft-delete a task
+- Empty state when no tasks in backlog
+
+**Access Control:**
+- Only visible to admin and project_manager roles
 
 ---
 

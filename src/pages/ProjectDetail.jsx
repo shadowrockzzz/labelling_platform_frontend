@@ -32,6 +32,7 @@ import ReviewTaskWorkspace from '../components/text-annotation/ReviewTaskWorkspa
 import { ImageAnnotationWorkspace } from '../features/image-annotation';
 import ImageReviewTaskWorkspace from '../features/image-annotation/components/ImageReviewTaskWorkspace.jsx';
 import { ProjectForm } from '../components/projects/ProjectForm.jsx';
+import { MyRejectedTasks } from '../components/tasks';
 import toast from 'react-hot-toast';
 
 export const ProjectDetail = () => {
@@ -344,6 +345,21 @@ export const ProjectDetail = () => {
             >
               <CheckCircle className="w-4 h-4" />
               Review
+            </button>
+          )}
+          {/* My Rejections tab - visible for annotators only */}
+          {isAnnotator && (
+            <button
+              onClick={() => setActiveTab('my-rejections')}
+              data-testid="tab-my-rejections"
+              className={`pb-4 border-b-2 font-medium transition-colors flex items-center gap-2 ${
+                activeTab === 'my-rejections'
+                  ? 'border-primary-600 text-primary-600'
+                  : 'border-transparent text-gray-600 hover:text-gray-900'
+              }`}
+            >
+              <SkipForward className="w-4 h-4" />
+              My Rejections
             </button>
           )}
           <button
@@ -1029,6 +1045,16 @@ export const ProjectDetail = () => {
           ) : (
             <ReviewTaskWorkspace annotationType="text" projectId={id} project={project} team={team} />
           )}
+        </div>
+      )}
+
+      {/* My Rejections Tab - For annotators to view their rejected tasks */}
+      {activeTab === 'my-rejections' && isAnnotator && (
+        <div className="bg-white rounded-lg shadow-lg overflow-hidden">
+          <MyRejectedTasks 
+            projectId={id} 
+            annotationType={project.annotation_type || 'text'}
+          />
         </div>
       )}
 
